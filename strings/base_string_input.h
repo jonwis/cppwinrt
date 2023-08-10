@@ -1,4 +1,10 @@
 
+#ifdef __cpp_consteval
+#define WINRT_IMPL_CONSTEVAL consteval
+#else
+#define WINRT_IMPL_CONSTEVAL constexpr
+#endif
+
 WINRT_EXPORT namespace winrt::param
 {
     struct hstring
@@ -6,7 +12,7 @@ WINRT_EXPORT namespace winrt::param
 #ifdef _MSC_VER
 #pragma warning(suppress: 26495)
 #endif
-        hstring() noexcept : m_handle(nullptr) {}
+        WINRT_IMPL_CONSTEVAL hstring() noexcept : m_handle(nullptr) {}
         hstring(hstring const& values) = delete;
         hstring& operator=(hstring const& values) = delete;
         hstring(std::nullptr_t) = delete;
@@ -18,19 +24,40 @@ WINRT_EXPORT namespace winrt::param
         {
         }
 
-        hstring(std::wstring_view const& value) noexcept
+        constexpr hstring(std::wstring_view value) noexcept
         {
-            create_string_reference(value.data(), value.size());
+            if (value.size() > 0)
+            {
+                WINRT_ASSERT(value.size() < UINT_MAX);
+                m_handle = &m_header;
+                m_header.flags = impl::hstring_reference_flag;
+                m_header.length = static_cast<uint32_t>(value.size());
+                m_header.ptr = value.data();
+            }
         }
 
-        hstring(std::wstring const& value) noexcept
+        constexpr hstring(std::wstring const& value) noexcept : hstring(std::wstring_view(value))
         {
-            create_string_reference(value.data(), value.size());
         }
 
-        hstring(wchar_t const* const value) noexcept
+        constexpr hstring(wchar_t const* const value) noexcept : hstring(std::wstring_view(value))
         {
-            create_string_reference(value, wcslen(value));
+        }
+
+        template<uint32_t size> WINRT_IMPL_CONSTEVAL hstring(const wchar_t (&value)[size]) noexcept
+        {
+            static_assert(size < UINT_MAX, "string too large");
+            if (size == 1)
+            {
+                m_handle = nullptr;
+            }
+            else
+            {
+                m_handle = &m_header;
+                m_header.flags = impl::hstring_reference_flag;
+                m_header.length = size - 1;
+                m_header.ptr = value;
+            }
         }
 
         operator winrt::hstring const&() const noexcept
@@ -39,24 +66,8 @@ WINRT_EXPORT namespace winrt::param
         }
 
     private:
-        void create_string_reference(wchar_t const* const data, size_t size) noexcept
-        {
-            WINRT_ASSERT(size < UINT_MAX);
-            auto size32 = static_cast<uint32_t>(size);
-
-            if (size32 == 0)
-            {
-                m_handle = nullptr;
-            }
-            else
-            {
-                impl::create_hstring_on_stack(m_header, data, size32);
-                m_handle = &m_header;
-            }
-        }
-
-        void* m_handle;
-        impl::hstring_header m_header;
+        void* m_handle = nullptr;
+        impl::hstring_header m_header{};
     };
 
     inline void* get_abi(hstring const& object) noexcept
