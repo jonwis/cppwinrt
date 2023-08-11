@@ -28,7 +28,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <ItemDefinitionGroup>
         <ClCompile>
             <CompileAsWinRT Condition="'$(CppWinRTProjectLanguage)' != 'C++/CX' And '%(ClCompile.CompileAsWinRT)' == ''">false</CompileAsWinRT>
-            <LanguageStandard Condition="'%(ClCompile.LanguageStandard)' == ''">stdcpp17</LanguageStandard>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Midl Condition="'$(CppWinRTModernIDL)' != 'false'">
             <EnableWindowsRuntime>true</EnableWindowsRuntime>

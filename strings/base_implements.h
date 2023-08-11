@@ -1023,7 +1023,7 @@ namespace winrt::impl
                         return error_bad_alloc;
                     }
                     *array = std::copy(local_iids.second, local_iids.second + local_count, *array);
-                    std::copy(inner_iids.cbegin(), inner_iids.cend(), *array);
+                    std::copy(inner_iids.begin(), inner_iids.end(), *array);
                 }
                 else
                 {

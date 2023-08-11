@@ -48,7 +48,7 @@ namespace winrt::Component::implementation
         value = m_object;
     }
 
-    void Parameters::SetInt32Array(array_view<int32_t const> value)
+    void Parameters::SetInt32Array(std::span<int32_t const> value)
     {
         m_int32_array.assign(value.begin(), value.end());
     }
@@ -63,7 +63,7 @@ namespace winrt::Component::implementation
         value = com_array<int32_t>(m_int32_array);
     }
 
-    void Parameters::CopyInt32Array(array_view<int32_t> value) const
+    void Parameters::CopyInt32Array(std::span<int32_t> value) const
     {
         uint32_t actual = static_cast<uint32_t>(m_int32_array.size());
 
@@ -75,7 +75,7 @@ namespace winrt::Component::implementation
         std::copy_n(m_int32_array.begin(), actual, value.begin());
     }
 
-    void Parameters::SetStringArray(array_view<hstring const> value)
+    void Parameters::SetStringArray(std::span<hstring const> value)
     {
         m_string_array.assign(value.begin(), value.end());
     }
@@ -90,7 +90,7 @@ namespace winrt::Component::implementation
         value = com_array<hstring>(m_string_array);
     }
 
-    void Parameters::CopyStringArray(array_view<hstring> value) const
+    void Parameters::CopyStringArray(std::span<hstring> value) const
     {
         uint32_t actual = static_cast<uint32_t>(m_string_array.size());
 
@@ -102,7 +102,7 @@ namespace winrt::Component::implementation
         std::copy_n(m_string_array.begin(), actual, value.begin());
     }
 
-    void Parameters::SetObjectArray(array_view<Windows::Foundation::IInspectable const> value)
+    void Parameters::SetObjectArray(std::span<Windows::Foundation::IInspectable const> value)
     {
         m_object_array.assign(value.begin(), value.end());
     }
@@ -117,7 +117,7 @@ namespace winrt::Component::implementation
         value = com_array<Windows::Foundation::IInspectable>(m_object_array);
     }
 
-    void Parameters::CopyObjectArray(array_view<Windows::Foundation::IInspectable> value) const
+    void Parameters::CopyObjectArray(std::span<Windows::Foundation::IInspectable> value) const
     {
         uint32_t actual = static_cast<uint32_t>(m_object_array.size());
 

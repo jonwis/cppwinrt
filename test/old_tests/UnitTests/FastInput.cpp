@@ -22,10 +22,6 @@ TEST_CASE("FastInput")
         REQUIRE(fast.Array({ L"One",L"Two",L"Three" }) == L"OneTwoThree");
         REQUIRE(fast.Array(std::vector<hstring>{ L"One", L"Two", L"Three" }) == L"OneTwoThree");
         REQUIRE(fast.Array(std::array<hstring, 3>{ L"One", L"Two", L"Three" }) == L"OneTwoThree");
-
-        // TODO: array_view doesn't bind to... wait for it array_view or com_array.
-        // Need to define com_array without inheriting from array_view.
-        // Then array_view can bind to com_array for input and symmetry.
     }
 
     {

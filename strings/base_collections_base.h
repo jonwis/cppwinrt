@@ -191,7 +191,7 @@ WINRT_EXPORT namespace winrt
                 return m_current != m_end;
             }
 
-            uint32_t GetMany(array_view<T> values)
+            uint32_t GetMany(std::span<T> values)
             {
                 auto guard = m_owner->acquire_exclusive();
                 this->check_version(*m_owner);
@@ -213,15 +213,16 @@ WINRT_EXPORT namespace winrt
                 }
             }
 
-            uint32_t GetMany(array_view<T> values, std::random_access_iterator_tag)
+            uint32_t GetMany(std::span<T> values, std::random_access_iterator_tag)
             {
-                uint32_t const actual = (std::min)(static_cast<uint32_t>(m_end - m_current), values.size());
+                WINRT_ASSERT(values.size() <= UINT_MAX);
+                uint32_t const actual = (std::min)(static_cast<uint32_t>(m_end - m_current), static_cast<uint32_t>(values.size()));
                 m_owner->copy_n(m_current, actual, values.begin());
                 m_current += actual;
                 return actual;
             }
 
-            uint32_t GetMany(array_view<T> values, std::input_iterator_tag)
+            uint32_t GetMany(std::span<T> values, std::input_iterator_tag)
             {
                 auto output = values.begin();
 
@@ -275,15 +276,16 @@ WINRT_EXPORT namespace winrt
             return index < container_size();
         }
 
-        uint32_t GetMany(uint32_t const startIndex, array_view<T> values) const
+        uint32_t GetMany(uint32_t const startIndex, std::span<T> values) const
         {
+            WINRT_ASSERT(values.size() <= UINT_MAX);
             auto guard = static_cast<D const&>(*this).acquire_shared();
             if (startIndex >= container_size())
             {
                 return 0;
             }
 
-            uint32_t const actual = (std::min)(container_size() - startIndex, values.size());
+            uint32_t const actual = (std::min)(container_size() - startIndex, static_cast<uint32_t>(values.size()));
             this->copy_n(static_cast<D const&>(*this).get_container().begin() + startIndex, actual, values.begin());
             return actual;
         }
@@ -379,7 +381,7 @@ WINRT_EXPORT namespace winrt
             oldContainer.assign(static_cast<D&>(*this).get_container());
         }
 
-        void ReplaceAll(array_view<T const> value)
+        void ReplaceAll(std::span<T const> value)
         {
             impl::removed_values<D> oldContainer;
 
@@ -461,7 +463,7 @@ WINRT_EXPORT namespace winrt
             call_changed(Windows::Foundation::Collections::CollectionChange::Reset, 0);
         }
 
-        void ReplaceAll(array_view<T const> value)
+        void ReplaceAll(std::span<T const> value)
         {
             vector_base<D, T>::ReplaceAll(value);
             call_changed(Windows::Foundation::Collections::CollectionChange::Reset, 0);

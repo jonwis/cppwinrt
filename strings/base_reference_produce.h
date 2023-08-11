@@ -257,28 +257,28 @@ namespace winrt::impl
     template <>
     struct reference_traits<com_array<uint8_t>>
     {
-        static auto make(array_view<uint8_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt8Array(value); }
+        static auto make(std::span<uint8_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt8Array(value); }
         using itf = Windows::Foundation::IReferenceArray<uint8_t>;
     };
 
     template <>
     struct reference_traits<com_array<int16_t>>
     {
-        static auto make(array_view<int16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt16Array(value); }
+        static auto make(std::span<int16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt16Array(value); }
         using itf = Windows::Foundation::IReferenceArray<int16_t>;
     };
 
     template <>
     struct reference_traits<com_array<uint16_t>>
     {
-        static auto make(array_view<uint16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt16Array(value); }
+        static auto make(std::span<uint16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt16Array(value); }
         using itf = Windows::Foundation::IReferenceArray<uint16_t>;
     };
 
     template <>
     struct reference_traits<com_array<int32_t>>
     {
-        static auto make(array_view<int32_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt32Array(value); }
+        static auto make(std::span<int32_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt32Array(value); }
         using itf = Windows::Foundation::IReferenceArray<int32_t>;
     };
 
@@ -292,105 +292,105 @@ namespace winrt::impl
     template <>
     struct reference_traits<com_array<int64_t>>
     {
-        static auto make(array_view<int64_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt64Array(value); }
+        static auto make(std::span<int64_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt64Array(value); }
         using itf = Windows::Foundation::IReferenceArray<int64_t>;
     };
 
     template <>
     struct reference_traits<com_array<uint64_t>>
     {
-        static auto make(array_view<uint64_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt64Array(value); }
+        static auto make(std::span<uint64_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt64Array(value); }
         using itf = Windows::Foundation::IReferenceArray<uint64_t>;
     };
 
     template <>
     struct reference_traits<com_array<float>>
     {
-        static auto make(array_view<float const> const& value) { return Windows::Foundation::PropertyValue::CreateSingleArray(value); }
+        static auto make(std::span<float const> const& value) { return Windows::Foundation::PropertyValue::CreateSingleArray(value); }
         using itf = Windows::Foundation::IReferenceArray<float>;
     };
 
     template <>
     struct reference_traits<com_array<double>>
     {
-        static auto make(array_view<double const> const& value) { return Windows::Foundation::PropertyValue::CreateDoubleArray(value); }
+        static auto make(std::span<double const> const& value) { return Windows::Foundation::PropertyValue::CreateDoubleArray(value); }
         using itf = Windows::Foundation::IReferenceArray<double>;
     };
 
     template <>
     struct reference_traits<com_array<char16_t>>
     {
-        static auto make(array_view<char16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateChar16Array(value); }
+        static auto make(std::span<char16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateChar16Array(value); }
         using itf = Windows::Foundation::IReferenceArray<char16_t>;
     };
 
     template <>
     struct reference_traits<com_array<bool>>
     {
-        static auto make(array_view<bool const> const& value) { return Windows::Foundation::PropertyValue::CreateBooleanArray(value); }
+        static auto make(std::span<bool const> const& value) { return Windows::Foundation::PropertyValue::CreateBooleanArray(value); }
         using itf = Windows::Foundation::IReferenceArray<bool>;
     };
 
     template <>
     struct reference_traits<com_array<hstring>>
     {
-        static auto make(array_view<hstring const> const& value) { return Windows::Foundation::PropertyValue::CreateStringArray(value); }
+        static auto make(std::span<hstring const> const& value) { return Windows::Foundation::PropertyValue::CreateStringArray(value); }
         using itf = Windows::Foundation::IReferenceArray<hstring>;
     };
 
     template <>
     struct reference_traits<com_array<Windows::Foundation::IInspectable>>
     {
-        static auto make(array_view<Windows::Foundation::IInspectable const> const& value) { return Windows::Foundation::PropertyValue::CreateInspectableArray(value); }
+        static auto make(std::span<Windows::Foundation::IInspectable const> const& value) { return Windows::Foundation::PropertyValue::CreateInspectableArray(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::IInspectable>;
     };
 
     template <>
     struct reference_traits<com_array<guid>>
     {
-        static auto make(array_view<guid const> const& value) { return Windows::Foundation::PropertyValue::CreateGuidArray(value); }
+        static auto make(std::span<guid const> const& value) { return Windows::Foundation::PropertyValue::CreateGuidArray(value); }
         using itf = Windows::Foundation::IReferenceArray<guid>;
     };
 
     template <>
     struct reference_traits<com_array<GUID>>
     {
-        static auto make(array_view<GUID const> const& value) { return Windows::Foundation::PropertyValue::CreateGuidArray(reinterpret_cast<array_view<guid const> const&>(value)); }
+        static auto make(std::span<GUID const> const& value) { return Windows::Foundation::PropertyValue::CreateGuidArray(reinterpret_cast<std::span<guid const> const&>(value)); }
         using itf = Windows::Foundation::IReferenceArray<guid>;
     };
 
     template <>
     struct reference_traits<com_array<Windows::Foundation::DateTime>>
     {
-        static auto make(array_view<Windows::Foundation::DateTime const> const& value) { return Windows::Foundation::PropertyValue::CreateDateTimeArray(value); }
+        static auto make(std::span<Windows::Foundation::DateTime const> const& value) { return Windows::Foundation::PropertyValue::CreateDateTimeArray(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::DateTime>;
     };
 
     template <>
     struct reference_traits<com_array<Windows::Foundation::TimeSpan>>
     {
-        static auto make(array_view<Windows::Foundation::TimeSpan const> const& value) { return Windows::Foundation::PropertyValue::CreateTimeSpanArray(value); }
+        static auto make(std::span<Windows::Foundation::TimeSpan const> const& value) { return Windows::Foundation::PropertyValue::CreateTimeSpanArray(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::TimeSpan>;
     };
 
     template <>
     struct reference_traits<com_array<Windows::Foundation::Point>>
     {
-        static auto make(array_view<Windows::Foundation::Point const> const& value) { return Windows::Foundation::PropertyValue::CreatePointArray(value); }
+        static auto make(std::span<Windows::Foundation::Point const> const& value) { return Windows::Foundation::PropertyValue::CreatePointArray(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::Point>;
     };
 
     template <>
     struct reference_traits<com_array<Windows::Foundation::Size>>
     {
-        static auto make(array_view<Windows::Foundation::Size const> const& value) { return Windows::Foundation::PropertyValue::CreateSizeArray(value); }
+        static auto make(std::span<Windows::Foundation::Size const> const& value) { return Windows::Foundation::PropertyValue::CreateSizeArray(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::Size>;
     };
 
     template <>
     struct reference_traits<com_array<Windows::Foundation::Rect>>
     {
-        static auto make(array_view<Windows::Foundation::Rect const> const& value) { return Windows::Foundation::PropertyValue::CreateRectArray(value); }
+        static auto make(std::span<Windows::Foundation::Rect const> const& value) { return Windows::Foundation::PropertyValue::CreateRectArray(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::Rect>;
     };
 }

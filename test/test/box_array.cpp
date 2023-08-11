@@ -10,23 +10,23 @@ namespace
         auto box = winrt::box_value(ary);
         winrt::com_array<T> unbox = box.template try_as<winrt::com_array<T>>().value();
         REQUIRE(unbox.size() == 2);
-        REQUIRE(unbox.at(0) == otherValue);
-        REQUIRE(unbox.at(1) == defaultValue);
+        REQUIRE(unbox[0] == otherValue);
+        REQUIRE(unbox[1] == defaultValue);
         unbox = box.template as<winrt::com_array<T>>();
         REQUIRE(unbox.size() == 2);
-        REQUIRE(unbox.at(0) == otherValue);
-        REQUIRE(unbox.at(1) == defaultValue);
+        REQUIRE(unbox[0] == otherValue);
+        REQUIRE(unbox[1] == defaultValue);
         if constexpr (!std::is_same_v<T, GUID>)
         {
             unbox = box.template as<winrt::optional<winrt::com_array<T>>>().Value();
             REQUIRE(unbox.size() == 2);
-            REQUIRE(unbox.at(0) == otherValue);
-            REQUIRE(unbox.at(1) == defaultValue);
+            REQUIRE(unbox[0] == otherValue);
+            REQUIRE(unbox[1] == defaultValue);
         }
         unbox = winrt::unbox_value<winrt::com_array<T>>(box);
         REQUIRE(unbox.size() == 2);
-        REQUIRE(unbox.at(0) == otherValue);
-        REQUIRE(unbox.at(1) == defaultValue);
+        REQUIRE(unbox[0] == otherValue);
+        REQUIRE(unbox[1] == defaultValue);
         // Cannot use unbox_value_or with arrays because com_array is not copyable.
         // unbox = winrt::unbox_value_or(box, winrt::com_array<T>{});
     }

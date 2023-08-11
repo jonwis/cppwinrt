@@ -650,7 +650,7 @@ namespace cppwinrt
                     w.write(param_name);
                     break;
                 case param_category::array_type:
-                    w.write("%.size(), get_abi(%)", param_name, param_name);
+                    w.write("get_abi_size(%), get_abi(%)", param_name, param_name);
                     break;
                 }
             }
@@ -671,7 +671,7 @@ namespace cppwinrt
                     }
                     else
                     {
-                        w.write("%.size(), put_abi(%)", param_name, param_name);
+                        w.write("get_abi_size(%), put_abi(%)", param_name, param_name);
                     }
                     break;
                 default:
@@ -875,7 +875,7 @@ namespace cppwinrt
 
                 if (param.Flags().In())
                 {
-                    format = "array_view<% const>";
+                    format = "std::span<% const>";
                 }
                 else if (param_signature->ByRef())
                 {
@@ -883,7 +883,7 @@ namespace cppwinrt
                 }
                 else
                 {
-                    format = "array_view<%>";
+                    format = "std::span<%>";
                 }
 
                 w.write(format, param_signature->Type().Type());
@@ -939,7 +939,7 @@ namespace cppwinrt
 
                 if (param.Flags().In())
                 {
-                    format = "array_view<% const>";
+                    format = "std::span<% const>";
                 }
                 else if (param_signature->ByRef())
                 {
@@ -947,7 +947,7 @@ namespace cppwinrt
                 }
                 else
                 {
-                    format = "array_view<%>";
+                    format = "std::span<%>";
                 }
 
                 w.write(format, param_signature->Type().Type());
@@ -1723,7 +1723,7 @@ namespace cppwinrt
             {
                 if (param.Flags().In())
                 {
-                    w.write("array_view<@ const>(reinterpret_cast<@ const *>(%), reinterpret_cast<@ const *>(%) + __%Size)",
+                    w.write("std::span<@ const>(reinterpret_cast<@ const *>(%), reinterpret_cast<@ const *>(%) + __%Size)",
                         param_type,
                         param_type,
                         param_name,
@@ -1740,7 +1740,7 @@ namespace cppwinrt
                 }
                 else
                 {
-                    w.write("array_view<@>(reinterpret_cast<@*>(%), reinterpret_cast<@*>(%) + __%Size)",
+                    w.write("std::span<@>(reinterpret_cast<@*>(%), reinterpret_cast<@*>(%) + __%Size)",
                         param_type,
                         param_type,
                         param_name,

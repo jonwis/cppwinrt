@@ -76,12 +76,12 @@ namespace winrt::test_component::implementation
         Struct ReturnStruct();
         Signed ReturnEnum();
 
-        hstring InInt32Array(array_view<int32_t const> value);
-        hstring InStringArray(array_view<hstring const> value);
-        hstring InObjectArray(array_view<Windows::Foundation::IInspectable const> value);
-        hstring InStringableArray(array_view<Windows::Foundation::IStringable const> value);
-        hstring InStructArray(array_view<Struct const> value);
-        hstring InEnumArray(array_view<Signed const> value);
+        hstring InInt32Array(std::span<int32_t const> value);
+        hstring InStringArray(std::span<hstring const> value);
+        hstring InObjectArray(std::span<Windows::Foundation::IInspectable const> value);
+        hstring InStringableArray(std::span<Windows::Foundation::IStringable const> value);
+        hstring InStructArray(std::span<Struct const> value);
+        hstring InEnumArray(std::span<Signed const> value);
 
         void OutInt32Array(com_array<int32_t>& value);
         void OutStringArray(com_array<hstring>& value);
@@ -90,12 +90,12 @@ namespace winrt::test_component::implementation
         void OutStructArray(com_array<Struct>& value);
         void OutEnumArray(com_array<Signed>& value);
 
-        void RefInt32Array(array_view<int32_t> value);
-        void RefStringArray(array_view<hstring> value);
-        void RefObjectArray(array_view<Windows::Foundation::IInspectable> value);
-        void RefStringableArray(array_view<Windows::Foundation::IStringable> value);
-        void RefStructArray(array_view<Struct> value);
-        void RefEnumArray(array_view<Signed> value);
+        void RefInt32Array(std::span<int32_t> value);
+        void RefStringArray(std::span<hstring> value);
+        void RefObjectArray(std::span<Windows::Foundation::IInspectable> value);
+        void RefStringableArray(std::span<Windows::Foundation::IStringable> value);
+        void RefStructArray(std::span<Struct> value);
+        void RefEnumArray(std::span<Signed> value);
 
         com_array<int32_t> ReturnInt32Array();
         com_array<hstring> ReturnStringArray();
@@ -135,10 +135,10 @@ namespace winrt::test_component::implementation
         event<Windows::Foundation::TypedEventHandler<test_component::Class, test_component::DeferrableEventArgs>> m_deferrableEvent;
 
         template<typename T>
-        static void simulate_rpc_behavior(array_view<T> const& value)
+        static void simulate_rpc_behavior(std::span<T> const& value)
         {
             // RPC requires array pointers to be non-null.
-            if (value.begin() == nullptr)
+            if (value.data() == nullptr)
             {
                 throw hresult_error(static_cast<hresult>(0x800706f4)); // HRESULT_FROM_WIN32(RPC_X_NULL_REF_POINTER)
             }

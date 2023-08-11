@@ -205,7 +205,7 @@ namespace winrt::test_component::implementation
         return Signed::First;
     }
 
-    hstring Class::InInt32Array(array_view<int32_t const> value)
+    hstring Class::InInt32Array(std::span<int32_t const> value)
     {
         simulate_rpc_behavior(value);
 
@@ -218,7 +218,7 @@ namespace winrt::test_component::implementation
 
         return result;
     }
-    hstring Class::InStringArray(array_view<hstring const> value)
+    hstring Class::InStringArray(std::span<hstring const> value)
     {
         simulate_rpc_behavior(value);
 
@@ -231,7 +231,7 @@ namespace winrt::test_component::implementation
 
         return result;
     }
-    hstring Class::InObjectArray(array_view<Windows::Foundation::IInspectable const> value)
+    hstring Class::InObjectArray(std::span<Windows::Foundation::IInspectable const> value)
     {
         simulate_rpc_behavior(value);
 
@@ -244,7 +244,7 @@ namespace winrt::test_component::implementation
 
         return result;
     }
-    hstring Class::InStringableArray(array_view<Windows::Foundation::IStringable const> value)
+    hstring Class::InStringableArray(std::span<Windows::Foundation::IStringable const> value)
     {
         simulate_rpc_behavior(value);
 
@@ -257,7 +257,7 @@ namespace winrt::test_component::implementation
 
         return result;
     }
-    hstring Class::InStructArray(array_view<Struct const> value)
+    hstring Class::InStructArray(std::span<Struct const> value)
     {
         simulate_rpc_behavior(value);
 
@@ -270,7 +270,7 @@ namespace winrt::test_component::implementation
 
         return result;
     }
-    hstring Class::InEnumArray(array_view<Signed const> value)
+    hstring Class::InEnumArray(std::span<Signed const> value)
     {
         simulate_rpc_behavior(value);
 
@@ -314,7 +314,7 @@ namespace winrt::test_component::implementation
         value = { Signed::First, Signed::Second };
     }
 
-    void Class::RefInt32Array(array_view<int32_t> value)
+    void Class::RefInt32Array(std::span<int32_t> value)
     {
         simulate_rpc_behavior(value);
 
@@ -329,7 +329,7 @@ namespace winrt::test_component::implementation
         }
     }
 
-    void Class::RefStringArray(array_view<hstring> value)
+    void Class::RefStringArray(std::span<hstring> value)
     {
         simulate_rpc_behavior(value);
 
@@ -344,7 +344,7 @@ namespace winrt::test_component::implementation
         }
     }
 
-    void Class::RefObjectArray(array_view<Windows::Foundation::IInspectable> value)
+    void Class::RefObjectArray(std::span<Windows::Foundation::IInspectable> value)
     {
         simulate_rpc_behavior(value);
 
@@ -359,7 +359,7 @@ namespace winrt::test_component::implementation
         }
     }
 
-    void Class::RefStringableArray(array_view<Windows::Foundation::IStringable> value)
+    void Class::RefStringableArray(std::span<Windows::Foundation::IStringable> value)
     {
         simulate_rpc_behavior(value);
 
@@ -374,7 +374,7 @@ namespace winrt::test_component::implementation
         }
     }
 
-    void Class::RefStructArray(array_view<Struct> value)
+    void Class::RefStructArray(std::span<Struct> value)
     {
         simulate_rpc_behavior(value);
 
@@ -393,7 +393,7 @@ namespace winrt::test_component::implementation
         }
     }
 
-    void Class::RefEnumArray(array_view<Signed> value)
+    void Class::RefEnumArray(std::span<Signed> value)
     {
         simulate_rpc_behavior(value);
 

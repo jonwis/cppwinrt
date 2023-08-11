@@ -1,241 +1,19 @@
+#include <span>
 
 WINRT_EXPORT namespace winrt
 {
     template <typename T>
-    struct array_view
+    struct com_array : std::span<T>
     {
-        using value_type = T;
-        using size_type = uint32_t;
-        using reference = value_type&;
-        using const_reference = value_type const&;
-        using pointer = value_type*;
-        using const_pointer = value_type const*;
-        using iterator = value_type*;
-        using const_iterator = value_type const*;
-        using reverse_iterator = std::reverse_iterator<iterator>;
-        using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-        array_view() noexcept = default;
-
-        array_view(pointer data, size_type size) noexcept :
-            m_data(data),
-            m_size(size)
-        {}
-
-        array_view(pointer first, pointer last) noexcept :
-            m_data(first),
-            m_size(static_cast<size_type>(last - first))
-        {}
-
-        array_view(std::initializer_list<value_type> value) noexcept :
-            array_view(value.begin(), static_cast<size_type>(value.size()))
-        {}
-
-        template <typename C, size_type N>
-        array_view(C(&value)[N]) noexcept :
-            array_view(value, N)
-        {}
-
-        template <typename C>
-        array_view(std::vector<C>& value) noexcept :
-            array_view(data(value), static_cast<size_type>(value.size()))
-        {
-        }
-
-        template <typename C>
-        array_view(std::vector<C> const& value) noexcept :
-            array_view(data(value), static_cast<size_type>(value.size()))
-        {
-        }
-
-        template <typename C, size_t N>
-        array_view(std::array<C, N>& value) noexcept :
-            array_view(value.data(), static_cast<size_type>(value.size()))
-        {}
-
-        template <typename C, size_t N>
-        array_view(std::array<C, N> const& value) noexcept :
-            array_view(value.data(), static_cast<size_type>(value.size()))
-        {}
-
-        template <typename OtherType>
-        array_view(array_view<OtherType> const& other,
-            std::enable_if_t<std::is_convertible_v<OtherType(*)[], T(*)[]>, int> = 0) noexcept :
-            array_view(other.data(), other.size())
-        {}
-
-        reference operator[](size_type const pos) noexcept
-        {
-            WINRT_ASSERT(pos < size());
-            return m_data[pos];
-        }
-
-        const_reference operator[](size_type const pos) const noexcept
-        {
-            WINRT_ASSERT(pos < size());
-            return m_data[pos];
-        }
-
-        reference at(size_type const pos)
-        {
-            if (size() <= pos)
-            {
-                throw std::out_of_range("Invalid array subscript");
-            }
-
-            return m_data[pos];
-        }
-
-        const_reference at(size_type const pos) const
-        {
-            if (size() <= pos)
-            {
-                throw std::out_of_range("Invalid array subscript");
-            }
-
-            return m_data[pos];
-        }
-
-        reference front() noexcept
-        {
-            WINRT_ASSERT(m_size > 0);
-            return*m_data;
-        }
-
-        const_reference front() const noexcept
-        {
-            WINRT_ASSERT(m_size > 0);
-            return*m_data;
-        }
-
-        reference back() noexcept
-        {
-            WINRT_ASSERT(m_size > 0);
-            return m_data[m_size - 1];
-        }
-
-        const_reference back() const noexcept
-        {
-            WINRT_ASSERT(m_size > 0);
-            return m_data[m_size - 1];
-        }
-
-        pointer data() const noexcept
-        {
-            return m_data;
-        }
-
-        iterator begin() noexcept
-        {
-            return m_data;
-        }
-
-        const_iterator begin() const noexcept
-        {
-            return m_data;
-        }
-
-        const_iterator cbegin() const noexcept
-        {
-            return m_data;
-        }
-
-        iterator end() noexcept
-        {
-            return m_data + m_size;
-        }
-
-        const_iterator end() const noexcept
-        {
-            return m_data + m_size;
-        }
-
-        const_iterator cend() const noexcept
-        {
-            return m_data + m_size;
-        }
-
-        reverse_iterator rbegin() noexcept
-        {
-            return reverse_iterator(end());
-        }
-
-        const_reverse_iterator rbegin() const noexcept
-        {
-            return const_reverse_iterator(end());
-        }
-
-        const_reverse_iterator crbegin() const noexcept
-        {
-            return rbegin();
-        }
-
-        reverse_iterator rend() noexcept
-        {
-            return reverse_iterator(begin());
-        }
-
-        const_reverse_iterator rend() const noexcept
-        {
-            return const_reverse_iterator(begin());
-        }
-
-        const_reverse_iterator crend() const noexcept
-        {
-            return rend();
-        }
-
-        bool empty() const noexcept
-        {
-            return m_size == 0;
-        }
-
-        size_type size() const noexcept
-        {
-            return m_size;
-        }
-
-    protected:
-
-        pointer m_data{ nullptr };
-        size_type m_size{ 0 };
-
-    private:
-
-        template <typename C>
-        auto data(std::vector<C> const& value) noexcept
-        {
-            static_assert(!std::is_same_v<C, bool>, "Cannot use std::vector<bool> as an array_view. Consider std::array or std::unique_ptr<bool[]>.");
-            return value.data();
-        }
-
-        template <typename C>
-        auto data(std::vector<C>& value) noexcept
-        {
-            static_assert(!std::is_same_v<C, bool>, "Cannot use std::vector<bool> as an array_view. Consider std::array or std::unique_ptr<bool[]>.");
-            return value.data();
-        }
-    };
-
-    template <typename C, size_t N> array_view(C(&value)[N]) -> array_view<C>;
-    template <typename C> array_view(std::vector<C>& value) -> array_view<C>;
-    template <typename C> array_view(std::vector<C> const& value) -> array_view<C const>;
-    template <typename C, size_t N> array_view(std::array<C, N>& value) -> array_view<C>;
-    template <typename C, size_t N> array_view(std::array<C, N> const& value) -> array_view<C const>;
-
-    template <typename T>
-    struct com_array : array_view<T>
-    {
-        using typename array_view<T>::value_type;
-        using typename array_view<T>::size_type;
-        using typename array_view<T>::reference;
-        using typename array_view<T>::const_reference;
-        using typename array_view<T>::pointer;
-        using typename array_view<T>::const_pointer;
-        using typename array_view<T>::iterator;
-        using typename array_view<T>::const_iterator;
-        using typename array_view<T>::reverse_iterator;
-        using typename array_view<T>::const_reverse_iterator;
+        using span_t = std::span<T>;
+        using typename span_t::value_type;
+        using typename span_t::size_type;
+        using typename span_t::reference;
+        using typename span_t::const_reference;
+        using typename span_t::pointer;
+        using typename span_t::const_pointer;
+        using typename span_t::iterator;
+        using typename span_t::reverse_iterator;
 
         com_array(com_array const&) = delete;
         com_array& operator=(com_array const&) = delete;
@@ -247,14 +25,14 @@ WINRT_EXPORT namespace winrt
         {}
 
         com_array(void* ptr, uint32_t const count, take_ownership_from_abi_t) noexcept :
-            array_view<T>(static_cast<value_type*>(ptr), static_cast<value_type*>(ptr) + count)
+            span_t(static_cast<value_type*>(ptr), static_cast<value_type*>(ptr) + count)
         {
         }
 
         com_array(size_type const count, value_type const& value)
         {
             alloc(count);
-            std::uninitialized_fill_n(this->m_data, count, value);
+            std::uninitialized_fill_n(this->data(), count, value);
         }
 
         template <typename InIt, typename = std::void_t<typename std::iterator_traits<InIt>::difference_type>>
@@ -288,21 +66,18 @@ WINRT_EXPORT namespace winrt
             com_array(value.begin(), value.end())
         {}
 
-        com_array(com_array&& other) noexcept :
-            array_view<T>(other.m_data, other.m_size)
+        com_array(com_array&& other)
         {
-            other.m_data = nullptr;
-            other.m_size = 0;
+            as_span() = other;
+            other.as_span() = {};
         }
 
         com_array& operator=(com_array&& other) noexcept
         {
             clear();
-            this->m_data = other.m_data;
-            this->m_size = other.m_size;
-            other.m_data = nullptr;
-            other.m_size = 0;
-            return*this;
+            as_span() = std::move(other);
+            other.as_span() = {};
+            return *this;
         }
 
         ~com_array() noexcept
@@ -312,22 +87,30 @@ WINRT_EXPORT namespace winrt
 
         void clear() noexcept
         {
-            if (this->m_data == nullptr) { return; }
-
             std::destroy(this->begin(), this->end());
+            WINRT_IMPL_CoTaskMemFree(this->data());
+            static_cast<span_t&>(*this) = {};
+        }
 
-            WINRT_IMPL_CoTaskMemFree(this->m_data);
-            this->m_data = nullptr;
-            this->m_size = 0;
+        uint32_t size() const
+        {
+            return static_cast<uint32_t>(as_span().size());
         }
 
         friend void swap(com_array& left, com_array& right) noexcept
         {
-            std::swap(left.m_data, right.m_data);
-            std::swap(left.m_size, right.m_size);
+            std::swap(left.as_span(), right.as_span());
+        }
+
+        void set_size(uint32_t size)
+        {
+            as_span() = {this->data(), size};
         }
 
     private:
+
+        span_t& as_span() { return *this; };
+        span_t const& as_span() const { return *this; }
 
         void alloc(size_type const size)
         {
@@ -335,14 +118,13 @@ WINRT_EXPORT namespace winrt
 
             if (0 != size)
             {
-                this->m_data = static_cast<value_type*>(WINRT_IMPL_CoTaskMemAlloc(size * sizeof(value_type)));
-
-                if (this->m_data == nullptr)
+                auto data = static_cast<value_type*>(WINRT_IMPL_CoTaskMemAlloc(size * sizeof(value_type)));
+                if (!data)
                 {
                     throw std::bad_alloc();
                 }
 
-                this->m_size = size;
+                as_span() = { data, size };
             }
         }
 
@@ -353,13 +135,11 @@ WINRT_EXPORT namespace winrt
             std::pair<uint32_t, impl::arg_out<T>> result;
             memset(&result, 0, sizeof(result));
             result.first = this->size();
-            result.second = *reinterpret_cast<impl::arg_out<T>*>(this);
-            memset(this, 0, sizeof(com_array<T>));
+            result.second = *reinterpret_cast<impl::arg_out<T>*>(this->data());
 #else
-            std::pair<uint32_t, impl::arg_out<T>> result(this->size(), *reinterpret_cast<impl::arg_out<T>*>(this));
-            this->m_data = nullptr;
-            this->m_size = 0;
+            std::pair<uint32_t, impl::arg_out<T>> result(this->size(), *reinterpret_cast<impl::arg_out<T>*>(this->data()));
 #endif
+            as_span() = {};
             return result;
         }
 
@@ -383,29 +163,29 @@ WINRT_EXPORT namespace winrt
 
     template <typename T, typename U, 
         std::enable_if_t<impl::array_comparable<T, U>, int> = 0>
-    bool operator==(array_view<T> const& left, array_view<U> const& right) noexcept
+    bool operator==(com_array<T> const& left, com_array<U> const& right) noexcept
     {
         return std::equal(left.begin(), left.end(), right.begin(), right.end());
     }
 
     template <typename T, typename U,
         std::enable_if_t<impl::array_comparable<T, U>, int> = 0>
-    bool operator<(array_view<T> const& left, array_view<U> const& right) noexcept
+    bool operator<(com_array<T> const& left, com_array<U> const& right) noexcept
     {
         return std::lexicographical_compare(left.begin(), left.end(), right.begin(), right.end());
     }
 
     template <typename T, typename U, std::enable_if_t<impl::array_comparable<T, U>, int> = 0>
-    bool operator!=(array_view<T> const& left, array_view<U> const& right) noexcept { return !(left == right); }
+    bool operator!=(com_array<T> const& left, com_array<U> const& right) noexcept { return !(left == right); }
     template <typename T, typename U,std::enable_if_t<impl::array_comparable<T, U>, int> = 0>
-    bool operator>(array_view<T> const& left, array_view<U> const& right) noexcept { return right < left; }
+    bool operator>(com_array<T> const& left, com_array<U> const& right) noexcept { return right < left; }
     template <typename T, typename U,std::enable_if_t<impl::array_comparable<T, U>, int> = 0>
-    bool operator<=(array_view<T> const& left, array_view<U> const& right) noexcept { return !(right < left); }
+    bool operator<=(com_array<T> const& left, com_array<U> const& right) noexcept { return !(right < left); }
     template <typename T, typename U, std::enable_if_t<impl::array_comparable<T, U>, int> = 0>
-    bool operator>=(array_view<T> const& left, array_view<U> const& right) noexcept { return !(left < right); }
+    bool operator>=(com_array<T> const& left, com_array<U> const& right) noexcept { return !(left < right); }
 
     template <typename T>
-    auto get_abi(array_view<T> object) noexcept
+    auto get_abi(std::span<T> object) noexcept
     {
         auto data = object.size() ? object.data() : (T*)alignof(T);
 
@@ -420,7 +200,7 @@ WINRT_EXPORT namespace winrt
     }
 
     template <typename T>
-    auto put_abi(array_view<T> object) noexcept
+    auto put_abi(std::span<T> object) noexcept
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
         {
@@ -428,6 +208,14 @@ WINRT_EXPORT namespace winrt
         }
 
         return get_abi(object);
+    }
+
+    template<typename T>
+    uint32_t get_abi_size(std::span<T> object) noexcept
+    {
+        auto size = object.size();
+        WINRT_ASSERT(size < UINT_MAX);
+        return static_cast<uint32_t>(size);
     }
 
     template<typename T>
@@ -463,7 +251,7 @@ namespace winrt::impl
         ~array_size_proxy() noexcept
         {
             WINRT_ASSERT(m_value.data() || (!m_value.data() && m_size == 0));
-            *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t*>(&m_value) + 1) = m_size;
+            m_value.set_size(m_size);
         }
 
         operator uint32_t*() noexcept

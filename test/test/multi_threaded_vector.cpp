@@ -241,13 +241,13 @@ namespace
             return *it;
         }
 
-        operator array_view<T>()
+        operator std::span<T>()
         {
             auto guard = concurrency_guard::lock_nonconst();
             return { inner::data(), static_cast<uint32_t>(inner::size()) };
         }
 
-        operator array_view<T const>() const
+        operator std::span<T const>() const
         {
             auto guard = concurrency_guard::lock_const();
             return { inner::data(), static_cast<uint32_t>(inner::size()) };

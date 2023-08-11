@@ -9,7 +9,7 @@ namespace winrt::Component::implementation
         FastInput() = default;
 
         hstring String(hstring const& in);
-        hstring Array(array_view<hstring const> in);
+        hstring Array(std::span<hstring const> in);
 
         hstring Iterable(Windows::Foundation::Collections::IIterable<hstring> const& in);
         hstring VectorView(Windows::Foundation::Collections::IVectorView<hstring> const& in);

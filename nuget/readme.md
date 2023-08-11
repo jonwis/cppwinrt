@@ -35,7 +35,7 @@ It sets the following project properties and item metadata:
 | GeneratedFilesDir | *$(IntDir)Generated Files\ | Sets the folder for C++/WinRT generated source files |
 | XamlLanguage | CppWinRT | Directs the Xaml compiler to generate C++/WinRT code |
 | ClCompile.CompileAsWinRT | *false | Enables ISO C++ compilation (disables C++/CX) |
-| ClCompile.LanguageStandard | *stdcpp17 | Enables C++17 language features |
+| ClCompile.LanguageStandard | *stdcpp20 | Enables C++20 language features |
 | ClCompile.AdditionalOptions | /bigobj | Enables support for large object files |
 | ClCompile.AdditionalIncludeDirectories | GeneratedFilesDir | Adds $(GeneratedFilesDir) to the C++ include dirs |
 | Link.AdditionalDependencies | WindowsApp.lib | Umbrella library for Windows Runtime imports |

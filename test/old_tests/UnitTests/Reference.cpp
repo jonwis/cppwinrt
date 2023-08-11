@@ -70,12 +70,12 @@ TEST_CASE("IReferenceArray_consume")
     {
         com_array<int> temp;
         propertyValue.GetInt32Array(temp);
-        REQUIRE(temp == array_view<int>{ values });
+        REQUIRE(temp == std::span<int>{ values });
     }
 
     // PropertyValue internally implements arrays with IReferenceArray.
     auto referenceArray = propertyValue.as<IReferenceArray<int>>();
-    REQUIRE(referenceArray.Value() == array_view<int>{ values });
+    REQUIRE(referenceArray.Value() == std::span<int>{ values });
 }
 
 TEST_CASE("IReferenceArray_produce")
@@ -83,6 +83,6 @@ TEST_CASE("IReferenceArray_produce")
     {
         std::vector<int> values{ 0, 42, 1729, -1 };
         auto test = make<Test<int>>(values);
-        REQUIRE(test.Value() == array_view<int>{ values });
+        REQUIRE(test.Value() == std::span<int>{ values });
     }
 }

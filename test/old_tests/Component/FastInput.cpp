@@ -49,7 +49,7 @@ namespace winrt::Component::implementation
         return in;
     }
 
-    hstring FastInput::Array(array_view<hstring const> in)
+    hstring FastInput::Array(std::span<hstring const> in)
     {
         return concat(in);
     }

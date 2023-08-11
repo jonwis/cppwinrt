@@ -139,7 +139,7 @@ namespace winrt::impl
 
         using base_type::GetMany;
 
-        uint32_t GetMany(uint32_t const startIndex, array_view<Windows::Foundation::IInspectable> values) const
+        uint32_t GetMany(uint32_t const startIndex, std::span<Windows::Foundation::IInspectable> values) const
         {
             auto guard = this->acquire_shared();
             if (startIndex >= m_values.size())
@@ -200,7 +200,7 @@ namespace winrt::impl
 
         using base_type::ReplaceAll;
 
-        void ReplaceAll(array_view<Windows::Foundation::IInspectable const> values)
+        void ReplaceAll(std::span<Windows::Foundation::IInspectable const> values)
         {
             Container new_values;
             new_values.reserve(values.size());
@@ -268,7 +268,7 @@ namespace winrt::impl
                 return m_current != m_end;
             }
 
-            uint32_t GetMany(array_view<Windows::Foundation::IInspectable> values)
+            uint32_t GetMany(std::span<Windows::Foundation::IInspectable> values)
             {
                 auto guard = m_owner->acquire_exclusive();
                 check_version(*m_owner);

@@ -85,7 +85,7 @@ TEST_CASE("delegates")
         REQUIRE(value[2] == L"Three");
     }
     {
-        RefStringArrayDelegate d = [](array_view<hstring> value) { value[0] = L"One"; value[1] = L"Two"; value[2] = L"Three"; };
+        RefStringArrayDelegate d = [](std::span<hstring> value) { value[0] = L"One"; value[1] = L"Two"; value[2] = L"Three"; };
 
         std::array<hstring, 4> value{ L"r1", L"r2", L"r3", L"r4" };
         d(value);

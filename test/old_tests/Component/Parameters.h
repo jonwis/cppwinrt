@@ -20,20 +20,20 @@ namespace winrt::Component::implementation
         Windows::Foundation::IInspectable GetObject() const;
         void OutObject(Windows::Foundation::IInspectable& value) const;
 
-        void SetInt32Array(array_view<int32_t const> value);
+        void SetInt32Array(std::span<int32_t const> value);
         com_array<int32_t> GetInt32Array() const;
         void OutInt32Array(com_array<int32_t>& value) const;
-        void CopyInt32Array(array_view<int32_t> value) const;
+        void CopyInt32Array(std::span<int32_t> value) const;
 
-        void SetStringArray(array_view<hstring const> value);
+        void SetStringArray(std::span<hstring const> value);
         com_array<hstring> GetStringArray() const;
         void OutStringArray(com_array<hstring>& value) const;
-        void CopyStringArray(array_view<hstring> value) const;
+        void CopyStringArray(std::span<hstring> value) const;
 
-        void SetObjectArray(array_view<Windows::Foundation::IInspectable const> value);
+        void SetObjectArray(std::span<Windows::Foundation::IInspectable const> value);
         com_array<Windows::Foundation::IInspectable> GetObjectArray() const;
         void OutObjectArray(com_array<Windows::Foundation::IInspectable>& value) const;
-        void CopyObjectArray(array_view<Windows::Foundation::IInspectable> value) const;
+        void CopyObjectArray(std::span<Windows::Foundation::IInspectable> value) const;
 
     private:
         int32_t m_int32{ 0 };

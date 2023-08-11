@@ -23,7 +23,7 @@ namespace winrt::Component::implementation
         m_value = value;
     }
 
-    void Structures::SetArray(array_view<WrapStructure const> value)
+    void Structures::SetArray(std::span<WrapStructure const> value)
     {
         m_array.assign(value.begin(), value.end());
     }
@@ -38,7 +38,7 @@ namespace winrt::Component::implementation
         value = { m_array.begin(), m_array.end() };
     }
 
-    void Structures::CopyArray(array_view<WrapStructure> value)
+    void Structures::CopyArray(std::span<WrapStructure> value)
     {
         uint32_t actual = static_cast<uint32_t>(m_array.size());
 

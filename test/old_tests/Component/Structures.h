@@ -12,10 +12,10 @@ namespace winrt::Component::implementation
         WrapStructure Get();
         void Out(WrapStructure& value);
         void Ref(WrapStructure const& value);
-        void SetArray(array_view<WrapStructure const> value);
+        void SetArray(std::span<WrapStructure const> value);
         com_array<WrapStructure> GetArray();
         void OutArray(com_array<WrapStructure>& value);
-        void CopyArray(array_view<WrapStructure> value);
+        void CopyArray(std::span<WrapStructure> value);
 
     private:
         WrapStructure m_value;
