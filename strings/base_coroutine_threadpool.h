@@ -52,23 +52,14 @@ namespace winrt::impl
     {
         resume_apartment_context() = default;
         resume_apartment_context(std::nullptr_t) : m_context(nullptr), m_context_type(-1) {}
-        resume_apartment_context(resume_apartment_context const&) = default;
-        resume_apartment_context(resume_apartment_context&& other) noexcept :
-            m_context(std::move(other.m_context)), m_context_type(std::exchange(other.m_context_type, -1)) {}
-        resume_apartment_context& operator=(resume_apartment_context const&) = default;
-        resume_apartment_context& operator=(resume_apartment_context&& other) noexcept
-        {
-            m_context = std::move(other.m_context);
-            m_context_type = std::exchange(other.m_context_type, -1);
-            return *this;
-        }
+
         bool valid() const noexcept
         {
-            return m_context_type >= 0;
+            return m_context_type.value >= 0;
         }
 
         com_ptr<IContextCallback> m_context = try_capture<IContextCallback>(WINRT_IMPL_CoGetObjectContext);
-        int32_t m_context_type = get_apartment_type().first;
+        movable_primitive<int32_t, -1> m_context_type = get_apartment_type().first;
     };
 
     inline int32_t __stdcall resume_apartment_callback(com_callback_args* args) noexcept
@@ -124,7 +115,7 @@ namespace winrt::impl
         {
             return false;
         }
-        else if (context.m_context_type == 1 /* APTTYPE_MTA */)
+        else if (context.m_context_type.value == 1 /* APTTYPE_MTA */)
         {
             resume_background(handle);
             return true;
@@ -409,17 +400,9 @@ namespace winrt::impl
             }
         }
 
-        static int32_t __stdcall fallback_SetThreadpoolTimerEx(winrt::impl::ptp_timer, void*, uint32_t, uint32_t) noexcept
-        {
-            return 0; // pretend timer has already triggered and a callback is on its way
-        }
-
         void fire_immediately() noexcept
         {
-            static int32_t(__stdcall * handler)(winrt::impl::ptp_timer, void*, uint32_t, uint32_t) noexcept;
-            impl::load_runtime_function(L"kernel32.dll", "SetThreadpoolTimerEx", handler, fallback_SetThreadpoolTimerEx);
-
-            if (handler(m_timer.get(), nullptr, 0, 0))
+            if (WINRT_IMPL_SetThreadpoolTimerEx(m_timer.get(), nullptr, 0, 0))
             {
                 int64_t now = 0;
                 WINRT_IMPL_SetThreadpoolTimer(m_timer.get(), &now, 0, 0);
@@ -513,10 +496,6 @@ namespace winrt::impl
         }
 
     private:
-        static int32_t __stdcall fallback_SetThreadpoolWaitEx(winrt::impl::ptp_wait, void*, void*, void*) noexcept
-        {
-            return 0; // pretend wait has already triggered and a callback is on its way
-        }
 
         void create_threadpool_wait()
         {
@@ -534,10 +513,7 @@ namespace winrt::impl
 
         void fire_immediately() noexcept
         {
-            static int32_t(__stdcall * handler)(winrt::impl::ptp_wait, void*, void*, void*) noexcept;
-            impl::load_runtime_function(L"kernel32.dll", "SetThreadpoolWaitEx", handler, fallback_SetThreadpoolWaitEx);
-
-            if (handler(m_wait.get(), nullptr, nullptr, nullptr))
+            if (WINRT_IMPL_SetThreadpoolWaitEx(m_wait.get(), nullptr, nullptr, nullptr))
             {
                 int64_t now = 0;
                 WINRT_IMPL_SetThreadpoolWait(m_wait.get(), WINRT_IMPL_GetCurrentProcess(), &now);
