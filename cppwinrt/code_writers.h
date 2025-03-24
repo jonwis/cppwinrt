@@ -1129,9 +1129,25 @@ namespace cppwinrt
             if (is_remove_overload(method))
             {
                 // we intentionally ignore errors when unregistering event handlers to be consistent with event_revoker
+                //
+                // The `noexcept` versions will crash if check_hresult throws but that is no different than previous
+                // behavior where it would not check the cast result and nullptr crash.  At least the exception will terminate
+                // immediately while preserving the error code and local variables.
                 format = R"(    template <typename D%> auto consume_%<D%>::%(%) const noexcept
     {%
-        WINRT_IMPL_SHIM(%)->%(%);%
+        if constexpr (!std::is_same_v<D, %>)
+        {
+            winrt::hresult _winrt_cast_result_code;
+            auto const _winrt_casted_result = impl::try_as_with_reason<%, D const*>(static_cast<D const*>(this), _winrt_cast_result_code);
+            check_hresult(_winrt_cast_result_code);
+            auto const _winrt_abi_type = *(abi_t<%>**)&_winrt_casted_result;
+            _winrt_abi_type->%(%);
+        }
+        else
+        {
+            auto const _winrt_abi_type = *(abi_t<%>**)this;
+            _winrt_abi_type->%(%);
+        }%
     }
 )";
             }
@@ -1139,7 +1155,19 @@ namespace cppwinrt
             {
                 format = R"(    template <typename D%> auto consume_%<D%>::%(%) const noexcept
     {%
-        WINRT_VERIFY_(0, WINRT_IMPL_SHIM(%)->%(%));%
+        if constexpr (!std::is_same_v<D, %>)
+        {
+            winrt::hresult _winrt_cast_result_code;
+            auto const _winrt_casted_result = impl::try_as_with_reason<%, D const*>(static_cast<D const*>(this), _winrt_cast_result_code);
+            check_hresult(_winrt_cast_result_code);
+            auto const _winrt_abi_type = *(abi_t<%>**)&_winrt_casted_result;
+            WINRT_VERIFY_(0, _winrt_abi_type->%(%));
+        }
+        else
+        {
+            auto const _winrt_abi_type = *(abi_t<%>**)this;
+            WINRT_VERIFY_(0, _winrt_abi_type->%(%));
+        }%
     }
 )";
             }
@@ -1148,7 +1176,19 @@ namespace cppwinrt
         {
             format = R"(    template <typename D%> auto consume_%<D%>::%(%) const
     {%
-        check_hresult(WINRT_IMPL_SHIM(%)->%(%));%
+        if constexpr (!std::is_same_v<D, %>)
+        {
+            winrt::hresult _winrt_cast_result_code;
+            auto const _winrt_casted_result = impl::try_as_with_reason<%, D const*>(static_cast<D const*>(this), _winrt_cast_result_code);
+            check_hresult(_winrt_cast_result_code);
+            auto const _winrt_abi_type = *(abi_t<%>**)&_winrt_casted_result;
+            check_hresult(_winrt_abi_type->%(%));
+        }
+        else
+        {
+            auto const _winrt_abi_type = *(abi_t<%>**)this;
+            check_hresult(_winrt_abi_type->%(%));
+        }%
     }
 )";
         }
@@ -1160,6 +1200,11 @@ namespace cppwinrt
             method_name,
             bind<write_consume_params>(signature),
             bind<write_consume_return_type>(signature, false),
+            type,
+            type,
+            type,
+            get_abi_name(method),
+            bind<write_abi_args>(signature),
             type,
             get_abi_name(method),
             bind<write_abi_args>(signature),
@@ -2108,6 +2153,10 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
                 w.write("\n        friend impl::consume_t<D, %>;", name);
                 w.write("\n        friend impl::require_one<D, %>;", name);
             }
+            else if (info.overridable)
+            {
+                w.write("\n        friend impl::produce<D, %>;", name);
+            }
         }
     }
 
@@ -2233,13 +2282,13 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
 
     static void write_class_override_usings(writer& w, get_interfaces_t const& required_interfaces)
     {
-        std::map<std::string_view, std::set<std::string>> method_usage;
+        std::map<std::string_view, std::map<std::string, interface_info>> method_usage;
 
-        for (auto&& [interface_name, info] : required_interfaces)
+        for (auto&& interface_desc : required_interfaces)
         {
-            for (auto&& method : info.type.MethodList())
+            for (auto&& method : interface_desc.second.type.MethodList())
             {
-                method_usage[get_name(method)].insert(interface_name);
+                method_usage[get_name(method)].insert(interface_desc);
             }
         }
 
@@ -2250,9 +2299,11 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
                 continue;
             }
 
-            for (auto&& interface_name : interfaces)
+            for (auto&& [interface_name, info] : interfaces)
             {
-                w.write("        using impl::consume_t<D, %>::%;\n",
+                w.write(info.overridable
+                        ? "        using %T<D>::%;\n"
+                        : "        using impl::consume_t<D, %>::%;\n",
                     interface_name,
                     method_name);
             }
@@ -2488,9 +2539,9 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
         template <typename F> %(F* function);
         template <typename O, typename M> %(O* object, M method);
         template <typename O, typename M> %(com_ptr<O>&& object, M method);
-        template <typename O, typename M> %(weak_ref<O>&& object, M method);
+        template <typename O, typename LM> %(weak_ref<O>&& object, LM&& lambda_or_method);
         template <typename O, typename M> %(std::shared_ptr<O>&& object, M method);
-        template <typename O, typename M> %(std::weak_ptr<O>&& object, M method);
+        template <typename O, typename LM> %(std::weak_ptr<O>&& object, LM&& lambda_or_method);
         auto operator()(%) const;
     };
 )";
@@ -2566,16 +2617,22 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
         %([o = std::move(object), method](auto&&... args) { return ((*o).*(method))(args...); })
     {
     }
-    template <%> template <typename O, typename M> %<%>::%(weak_ref<O>&& object, M method) :
-        %([o = std::move(object), method](auto&&... args) { if (auto s = o.get()) { ((*s).*(method))(args...); } })
+    template <%> template <typename O, typename LM> %<%>::%(weak_ref<O>&& object, LM&& lambda_or_method) :
+        %([o = std::move(object), lm = std::forward<LM>(lambda_or_method)](auto&&... args) { if (auto s = o.get()) {
+            if constexpr (std::is_member_function_pointer_v<LM>) ((*s).*(lm))(args...);
+            else lm(args...);
+        } })
     {
     }
     template <%> template <typename O, typename M> %<%>::%(std::shared_ptr<O>&& object, M method) :
         %([o = std::move(object), method](auto&&... args) { return ((*o).*(method))(args...); })
     {
     }
-    template <%> template <typename O, typename M> %<%>::%(std::weak_ptr<O>&& object, M method) :
-        %([o = std::move(object), method](auto&&... args) { if (auto s = o.lock()) { ((*s).*(method))(args...); } })
+    template <%> template <typename O, typename LM> %<%>::%(std::weak_ptr<O>&& object, LM&& lambda_or_method) :
+        %([o = std::move(object), lm = std::forward<LM>(lambda_or_method)](auto&&... args) { if (auto s = o.lock()) {
+            if constexpr (std::is_member_function_pointer_v<LM>) ((*s).*(lm))(args...);
+            else lm(args...);
+        } })
     {
     }
     template <%> auto %<%>::operator()(%) const
@@ -2652,16 +2709,22 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
         %([o = std::move(object), method](auto&&... args) { return ((*o).*(method))(args...); })
     {
     }
-    template <typename O, typename M> %::%(weak_ref<O>&& object, M method) :
-        %([o = std::move(object), method](auto&&... args) { if (auto s = o.get()) { ((*s).*(method))(args...); } })
+    template <typename O, typename LM> %::%(weak_ref<O>&& object, LM&& lambda_or_method) :
+        %([o = std::move(object), lm = std::forward<LM>(lambda_or_method)](auto&&... args) { if (auto s = o.get()) {
+            if constexpr (std::is_member_function_pointer_v<LM>) ((*s).*(lm))(args...);
+            else lm(args...);
+        } })
     {
     }
     template <typename O, typename M> %::%(std::shared_ptr<O>&& object, M method) :
         %([o = std::move(object), method](auto&&... args) { return ((*o).*(method))(args...); })
     {
     }
-    template <typename O, typename M> %::%(std::weak_ptr<O>&& object, M method) :
-        %([o = std::move(object), method](auto&&... args) { if (auto s = o.lock()) { ((*s).*(method))(args...); } })
+    template <typename O, typename LM> %::%(std::weak_ptr<O>&& object, LM&& lambda_or_method) :
+        %([o = std::move(object), lm = std::forward<LM>(lambda_or_method)](auto&&... args) { if (auto s = o.lock()) {
+            if constexpr (std::is_member_function_pointer_v<LM>) ((*s).*(lm))(args...);
+            else lm(args...);
+        } })
     {
     }
     inline auto %::operator()(%) const
@@ -2704,7 +2767,7 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
 
     static void write_struct_field(writer& w, std::pair<std::string_view, std::string> const& field)
     {
-        w.write("        @ %;\n",
+        w.write("        @ % {};\n",
             field.second,
             field.first);
     }
