@@ -146,3 +146,75 @@ function(winrt_cppwinrt_component)
 
     set_source_files_properties("${_module_g}" PROPERTIES GENERATED TRUE)
 endfunction()
+
+
+# ---------------------------------------------------------------------------
+# winrt_cppwinrt_projection_target
+#
+# Create a custom target that generates projection headers from a .winmd input
+# using cppwinrt and tracks completion with a stamp file.
+#
+# Parameters
+#   NAME        – custom target name to create
+#   WINMD       – absolute path to input .winmd
+#   OUTPUT_DIR  – output directory passed to cppwinrt -out
+#   STAMP_FILE  – (optional) explicit stamp file path
+#   FASTABI     – (optional flag) add -fastabi
+#   REF_WINMDS  – (optional multi-value) additional -ref winmd paths
+#   DEPENDS     – (optional multi-value) additional dependencies
+#   BYPRODUCTS  – (optional multi-value) generated files for build tracking
+#   EXTRA_ARGS  – (optional multi-value) additional cppwinrt args
+# ---------------------------------------------------------------------------
+function(winrt_cppwinrt_projection_target)
+    cmake_parse_arguments(PROJ "FASTABI" "NAME;WINMD;OUTPUT_DIR;STAMP_FILE" "REF_WINMDS;DEPENDS;BYPRODUCTS;EXTRA_ARGS" ${ARGN})
+
+    if(NOT PROJ_NAME)
+        message(FATAL_ERROR "winrt_cppwinrt_projection_target: NAME is required")
+    endif()
+    if(NOT PROJ_WINMD)
+        message(FATAL_ERROR "winrt_cppwinrt_projection_target: WINMD is required")
+    endif()
+    if(NOT PROJ_OUTPUT_DIR)
+        message(FATAL_ERROR "winrt_cppwinrt_projection_target: OUTPUT_DIR is required")
+    endif()
+
+    if(PROJ_STAMP_FILE)
+        set(_projection_stamp "${PROJ_STAMP_FILE}")
+    else()
+        set(_projection_stamp "${PROJ_OUTPUT_DIR}/${PROJ_NAME}.stamp")
+    endif()
+
+    set(_ref_args)
+    foreach(_ref IN LISTS PROJ_REF_WINMDS)
+        list(APPEND _ref_args -ref "${_ref}")
+    endforeach()
+
+    set(_fastabi_args)
+    if(PROJ_FASTABI)
+        list(APPEND _fastabi_args -fastabi)
+    endif()
+
+    add_custom_command(
+        OUTPUT  "${_projection_stamp}"
+        BYPRODUCTS ${PROJ_BYPRODUCTS}
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${PROJ_OUTPUT_DIR}"
+        COMMAND "$<TARGET_FILE:cppwinrt>"
+                -input "${PROJ_WINMD}"
+                -out   "${PROJ_OUTPUT_DIR}"
+                ${_ref_args}
+                -ref sdk
+                ${_fastabi_args}
+                -verbose
+                ${PROJ_EXTRA_ARGS}
+        COMMAND "${CMAKE_COMMAND}" -E touch "${_projection_stamp}"
+        DEPENDS
+            cppwinrt
+            "${PROJ_WINMD}"
+            ${PROJ_DEPENDS}
+        COMMENT "cppwinrt: generating projection for ${PROJ_NAME}"
+        VERBATIM
+    )
+
+    set_source_files_properties("${_projection_stamp}" PROPERTIES GENERATED TRUE)
+    add_custom_target(${PROJ_NAME} DEPENDS "${_projection_stamp}")
+endfunction()
