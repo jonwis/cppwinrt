@@ -1,18 +1,21 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 4.2)
+cmake_policy(VERSION 4.2)
 
-if(NOT DEFINED PROJECT_NAME)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     project(cppwinrt-tests)
-    set(STANDALONE_TESTING 1)
+    set(STANDALONE_TESTING ON)
     include(CTest)
     if(NOT BUILD_TESTING)
         message(NOTICE "BUILD_TESTING is OFF, nothing to do.")
         return()
     endif()
+else()
+    set(STANDALONE_TESTING OFF)
 endif()
 
 # Default all tests to C++17; cpp20-specific test projects opt into C++20.
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -75,17 +78,21 @@ if(STANDALONE_TESTING)
 else()
     set(CPPWINRT_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt"
         CACHE PATH "Include path for the generated C++/WinRT projection headers" FORCE)
+    set(_projection_stamp "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/.projection.stamp")
     add_custom_command(
         OUTPUT
+            "${_projection_stamp}"
+        BYPRODUCTS
             "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/winrt/base.h"
         COMMAND cppwinrt -input local -output "${CPPWINRT_PROJECTION_INCLUDE_DIR}" -verbose
+        COMMAND "${CMAKE_COMMAND}" -E touch "${_projection_stamp}"
         DEPENDS
             cppwinrt
         VERBATIM
     )
     add_custom_target(build-cppwinrt-projection
         DEPENDS
-            "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/winrt/base.h"
+            "${_projection_stamp}"
     )
 endif()
 include_directories("${CPPWINRT_PROJECTION_INCLUDE_DIR}")

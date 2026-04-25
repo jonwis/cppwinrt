@@ -3,7 +3,9 @@
 # Helper functions for building WinRT test components with MIDL + cppwinrt.
 # Only meaningful on Windows (MSVC / ClangCL) builds.
 
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 4.2)
+cmake_policy(VERSION 4.2)
+include_guard(GLOBAL)
 
 # ---------------------------------------------------------------------------
 # winrt_midl_compile

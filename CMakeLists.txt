@@ -13,7 +13,8 @@
 #   cmake -DCMAKE_TOOLCHAIN_FILE=cross-mingw-toolchain.cmake -B build/mingw
 #   cmake --build build/mingw
 
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 4.2)
+cmake_policy(VERSION 4.2)
 
 # Enable assembly languages when targeting MSVC (Visual Studio generator).
 # Must be listed before project() so the generator is fully configured.
@@ -27,7 +28,7 @@ else()
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CPPWINRT_BUILD_VERSION "999.999.999.999" CACHE STRING "The version string used for cppwinrt.")
 if(CPPWINRT_BUILD_VERSION STREQUAL "999.999.999.999" OR CPPWINRT_BUILD_VERSION STREQUAL "0.0.0.0")
@@ -39,6 +40,10 @@ message(STATUS "Using version string: ${CPPWINRT_BUILD_VERSION}")
 # Global compiler flags when building with MSVC / ClangCL
 # ---------------------------------------------------------------------------
 if(MSVC)
+    # Make runtime/debug info defaults explicit for reproducible builds.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>")
+
     # Apply C/C++ compiler flags only to CXX sources so MASM/MARMASM don't
     # receive unsupported switches.
     add_compile_options(
@@ -126,7 +131,6 @@ set(CPPWINRT_HEADERS
     cppwinrt/component_writers.h
     cppwinrt/file_writers.h
     cppwinrt/helpers.h
-    cppwinrt/pch.h
     cppwinrt/settings.h
     cppwinrt/task_group.h
     cppwinrt/text_writer.h
@@ -162,7 +166,7 @@ target_compile_definitions(cppwinrt PRIVATE CPPWINRT_VERSION_STRING="${CPPWINRT_
 target_include_directories(cppwinrt PRIVATE ${PROJECT_BINARY_DIR})
 
 if(WIN32)
-    target_link_libraries(cppwinrt shlwapi)
+    target_link_libraries(cppwinrt PRIVATE shlwapi)
 endif()
 
 if(MSVC)
@@ -229,7 +233,7 @@ int main() {}
     endif()
 endif()
 if(WIN32)
-    target_link_libraries(cppwinrt "${XMLLITE_LIBRARY}")
+    target_link_libraries(cppwinrt PRIVATE "${XMLLITE_LIBRARY}")
 endif()
 
 
@@ -256,7 +260,7 @@ if(EXTERNAL_WINMD_INCLUDE_DIR STREQUAL "")
     ExternalProject_Get_Property(winmd SOURCE_DIR)
     set(winmd_INCLUDE_DIR "${SOURCE_DIR}/src")
 else()
-message(STATUS "Using winmd library headers at ${EXTERNAL_WINMD_INCLUDE_DIR}")
+    message(STATUS "Using winmd library headers at ${EXTERNAL_WINMD_INCLUDE_DIR}")
     set(winmd_INCLUDE_DIR "${EXTERNAL_WINMD_INCLUDE_DIR}")
 endif()
 target_include_directories(cppwinrt PRIVATE "${winmd_INCLUDE_DIR}")
