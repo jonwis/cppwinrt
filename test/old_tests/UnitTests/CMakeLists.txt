@@ -23,6 +23,24 @@ list(APPEND BROKEN_TESTS
     smart_pointers
 )
 
+# When building with MSVC the Component and Composable DLLs are available.
+if(MSVC)
+    list(REMOVE_ITEM BROKEN_TESTS
+        Boxing2
+        Composable
+        Errors
+        Events
+        FastInput
+        Parameters
+        StructCodeGen
+        Structures
+        delegate_weak_strong
+        factory_cache
+        get_activation_factory
+        smart_pointers
+    )
+endif()
+
 list(APPEND BROKEN_TESTS
     # Missing `Windows.Applicationmodel.Activation.h`
     constexpr
@@ -46,6 +64,17 @@ endforeach()
 
 add_executable(test_old Main.cpp ${TEST_SRCS})
 target_link_libraries(test_old runtimeobject synchronization)
+
+target_include_directories(test_old PRIVATE
+    "${CMAKE_BINARY_DIR}/test/old_tests/Composable"
+    "${CMAKE_BINARY_DIR}/test/old_tests/Component"
+    "${CMAKE_SOURCE_DIR}/cppwinrt"
+    "${CMAKE_SOURCE_DIR}/test/old_tests/Composable"
+)
+
+if(MSVC)
+    add_dependencies(test_old Component Composable)
+endif()
 
 if(NOT SKIP_LARGE_PCH)
     target_precompile_headers(test_old PRIVATE pch.h)

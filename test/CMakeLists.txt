@@ -30,7 +30,10 @@ int main() {}
 endfunction()
 TestIsX64(TARGET_IS_X64)
 if(TARGET_IS_X64)
-    add_compile_options(-mcx16)
+    # -mcx16 is a GCC/Clang flag; MSVC/ClangCL already has __int128/cx16 support
+    if(NOT MSVC)
+        add_compile_options(-mcx16)
+    endif()
 endif()
 
 
@@ -70,7 +73,8 @@ if(STANDALONE_TESTING)
         message(FATAL_ERROR "CPPWINRT_PROJECTION_INCLUDE_DIR is not specified.")
     endif()
 else()
-    set(CPPWINRT_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt")
+    set(CPPWINRT_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt"
+        CACHE PATH "Include path for the generated C++/WinRT projection headers" FORCE)
     add_custom_command(
         OUTPUT
             "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/winrt/base.h"
@@ -109,6 +113,60 @@ add_subdirectory(test_nocoro)
 add_subdirectory(test_cpp20)
 add_subdirectory(test_cpp20_no_sourcelocation)
 
-if(HAS_WINDOWSNUMERICS)
+if(HAS_WINDOWSNUMERICS AND NOT (MSVC AND NOT CMAKE_CROSSCOMPILING))
     add_subdirectory(old_tests)
+endif()
+
+# ---------------------------------------------------------------------------
+# MSVC-only test targets that require MIDL + WinRT component DLLs
+# ---------------------------------------------------------------------------
+if(MSVC AND NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(test_component)
+    add_subdirectory(test_component_no_pch)
+    add_subdirectory(test_component_fast)
+    add_subdirectory(test_component_base)
+    add_subdirectory(test_component_derived)
+    add_subdirectory(test_component_folders)
+    add_subdirectory(test_fast)
+    add_subdirectory(test_slow)
+    add_subdirectory(test_fast_fwd)
+    add_subdirectory(test_module_lock_custom)
+    add_subdirectory(test_module_lock_none)
+
+    # old_tests component DLLs (MSVC builds get the full set).
+    # Add these before old_tests/UnitTests so add_dependencies() in UnitTests
+    # can resolve the targets.
+    if(HAS_WINDOWSNUMERICS)
+        add_subdirectory(old_tests/Composable)
+        add_subdirectory(old_tests/Component)
+        add_subdirectory(old_tests)
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
+# NuGet integration test suite — invoke msbuild from a custom target.
+# Not added to ALL; run manually with: cmake --build <dir> --target nuget_tests
+# ---------------------------------------------------------------------------
+if(MSVC AND NOT CMAKE_CROSSCOMPILING)
+    find_program(MSBUILD_EXECUTABLE msbuild)
+    if(MSBUILD_EXECUTABLE)
+        set(_nuget_sln "${CMAKE_SOURCE_DIR}/test/nuget/NuGetTest.sln")
+        set(_nuget_platform "${CMAKE_GENERATOR_PLATFORM}")
+        if(_nuget_platform STREQUAL "Win32")
+            # msbuild uses "Win32" already
+        elseif(_nuget_platform STREQUAL "")
+            set(_nuget_platform "x64")
+        endif()
+        add_custom_target(nuget_tests
+            COMMAND "${MSBUILD_EXECUTABLE}"
+                    /m /restore
+                    "/p:Configuration=$<CONFIG>"
+                    "/p:Platform=${_nuget_platform}"
+                    "${_nuget_sln}"
+            COMMENT "Building NuGet integration test suite"
+            VERBATIM
+        )
+    else()
+        message(STATUS "msbuild not found -- nuget_tests target will not be available")
+    endif()
 endif()

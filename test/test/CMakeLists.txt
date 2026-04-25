@@ -86,6 +86,17 @@ endif()
 
 add_dependencies(test-vanilla build-cppwinrt-projection)
 
+if(MSVC)
+    # On MSVC the test_component and test_component_no_pch DLLs are built and
+    # their "Generated Files/" contain the component projection headers needed
+    # by the test sources.
+    add_dependencies(test-vanilla test_component test_component_no_pch)
+    target_include_directories(test-vanilla PRIVATE
+        "${CMAKE_BINARY_DIR}/test/test_component"
+        "${CMAKE_BINARY_DIR}/test/test_component_no_pch"
+    )
+endif()
+
 add_test(
     NAME test
     COMMAND "$<TARGET_FILE:test-vanilla>" ${TEST_COLOR_ARG}

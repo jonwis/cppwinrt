@@ -1,41 +1,56 @@
 @echo off
+setlocal
+
+rem build_test_all.cmd [platform] [config] [version] [clean_intermediate_files]
+rem
+rem  platform : x64 | x86 | arm64  (default: x64)
+rem  config   : Debug | Release     (default: Release)
+rem  version  : build version string (default: 999.999.999.999)
+rem
+rem Uses cmake presets to configure/build, then ctest to execute tests.
 
 set target_platform=%1
 set target_configuration=%2
 set target_version=%3
 set clean_intermediate_files=%4
 
-if "%target_platform%"=="" set target_platform=x64
+if "%target_platform%"==""      set target_platform=x64
 if "%target_configuration%"=="" set target_configuration=Release
-if "%target_version%"=="" set target_version=999.999.999.999
+if "%target_version%"==""       set target_version=999.999.999.999
 
-if not exist ".\.nuget" mkdir ".\.nuget"
-if not exist ".\.nuget\nuget.exe" powershell -Command "$ProgressPreference = 'SilentlyContinue' ; Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile .\.nuget\nuget.exe"
+set cmake_arch=%target_platform%
+if /i "%target_platform%"=="win32" set cmake_arch=x86
 
-call .nuget\nuget.exe restore cppwinrt.sln"
-call .nuget\nuget.exe restore natvis\cppwinrtvisualizer.sln
-call .nuget\nuget.exe restore test\nuget\NugetTest.sln
+set cmake_preset=msvc-%cmake_arch%
 
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:fast_fwd
+echo.
+echo === Configuring [%cmake_preset%] version=%target_version% ===
+cmake --preset %cmake_preset% -DCPPWINRT_BUILD_VERSION=%target_version%
+if %ERRORLEVEL% NEQ 0 goto :error
 
-call msbuild /p:Configuration=%target_configuration%,Platform=%target_platform%,Deployment=Component;CppWinRTBuildVersion=%target_version% natvis\cppwinrtvisualizer.sln
-call msbuild /p:Configuration=%target_configuration%,Platform=%target_platform%,Deployment=Standalone;CppWinRTBuildVersion=%target_version% natvis\cppwinrtvisualizer.sln
+echo.
+echo === Building [%cmake_preset% / %target_configuration%] ===
+cmake --build build\%cmake_preset% --config %target_configuration% -j
+if %ERRORLEVEL% NEQ 0 goto :error
 
-if "%target_platform%"=="arm64" goto :eof
+rem Build NuGet integration tests through the CMake custom target (msbuild under the hood)
+if /i not "%target_platform%"=="arm64" (
+    echo.
+    echo === Building NuGet integration tests ===
+    cmake --build build\%cmake_preset% --config %target_configuration% --target nuget_tests -j
+)
 
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:cppwinrt
+rem ARM64 binaries are not runnable on most build hosts; skip execution
+if /i "%target_platform%"=="arm64" goto :eof
 
-call msbuild /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% test\nuget\NugetTest.sln
+echo.
+echo === Running tests [%cmake_preset% / %target_configuration%] ===
+ctest --preset %cmake_preset%-%target_configuration% --output-on-failure
+if %ERRORLEVEL% NEQ 0 goto :error
 
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_nocoro
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_cpp20
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_cpp20_no_sourcelocation
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_fast
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_slow
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_module_lock_custom
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_module_lock_none
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\test_module_lock_none
-call msbuild /m /p:Configuration=%target_configuration%,Platform=%target_platform%,CppWinRTBuildVersion=%target_version% cppwinrt.sln /t:test\old_tests\test_old
+goto :eof
 
-call run_tests.cmd %target_platform% %target_configuration%
+:error
+echo.
+echo *** Build failed with error %ERRORLEVEL% ***
+exit /b %ERRORLEVEL%
