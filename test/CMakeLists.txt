@@ -10,8 +10,8 @@ if(NOT DEFINED PROJECT_NAME)
     endif()
 endif()
 
-# The tests use newer C++ features.
-set(CMAKE_CXX_STANDARD 20)
+# Default all tests to C++17; cpp20-specific test projects opt into C++20.
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -94,7 +94,8 @@ include_directories("${CPPWINRT_PROJECTION_INCLUDE_DIR}")
 set(ENABLE_TEST_SANITIZERS FALSE CACHE BOOL "Enable ASan and UBSan for the tests.")
 if(ENABLE_TEST_SANITIZERS)
     # Disable the 'vptr' check because it seems to produce false-positives when using COM classes.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined,address -fno-sanitize=vptr")
+    add_compile_options(-fsanitize=undefined,address -fno-sanitize=vptr)
+    add_link_options(-fsanitize=undefined,address)
 endif()
 
 
@@ -162,6 +163,7 @@ if(MSVC AND NOT CMAKE_CROSSCOMPILING)
                     /m /restore
                     "/p:Configuration=$<CONFIG>"
                     "/p:Platform=${_nuget_platform}"
+                    "/p:CppWinRTPath=$<SHELL_PATH:$<TARGET_FILE_DIR:cppwinrt>>/"
                     "${_nuget_sln}"
             COMMENT "Building NuGet integration test suite"
             VERBATIM

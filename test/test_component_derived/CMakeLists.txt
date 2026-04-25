@@ -14,12 +14,16 @@ winrt_midl_compile(
     WINMD_OUT  "${_winmd}"
     HEADER_OUT "nul"
     EXTRA_IDL_DIRS "${CMAKE_SOURCE_DIR}/test/test_component_base"
+    EXTRA_DEPENDS  "${CMAKE_SOURCE_DIR}/test/test_component_base/test_component_base.idl"
 )
 
 set(_module_g "${_bindir}/module.g.cpp")
 
 add_custom_command(
     OUTPUT  "${_module_g}"
+    BYPRODUCTS
+        "${_bindir}/winrt/test_component_derived.h"
+        "${_bindir}/winrt/test_component_derived.Nested.h"
     COMMAND "$<TARGET_FILE:cppwinrt>"
             -input "${_winmd}"
             -ref   "${_base_winmd}"

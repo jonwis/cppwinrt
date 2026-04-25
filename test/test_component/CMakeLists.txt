@@ -32,6 +32,8 @@ add_custom_command(
     OUTPUT
         "${_bindir}/winrt/base.h"
         "${_module_g}"
+    BYPRODUCTS
+        "${_bindir}/winrt/test_component.h"
     COMMAND "$<TARGET_FILE:cppwinrt>"
             -in local
             -out "${_bindir}"

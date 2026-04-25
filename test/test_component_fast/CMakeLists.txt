@@ -20,6 +20,9 @@ set(_module_g "${_gendir}/module.g.cpp")
 
 add_custom_command(
     OUTPUT  "${_module_g}"
+    BYPRODUCTS
+        "${_bindir}/winrt/test_component_fast.h"
+        "${_bindir}/winrt/test_component_fast.Composition.h"
     COMMAND "$<TARGET_FILE:cppwinrt>"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"

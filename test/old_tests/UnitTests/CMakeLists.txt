@@ -63,7 +63,7 @@ foreach(TEST_SRCS_EXCLUDE_ITEM IN LISTS BROKEN_TESTS)
 endforeach()
 
 add_executable(test_old Main.cpp ${TEST_SRCS})
-target_link_libraries(test_old runtimeobject synchronization)
+target_link_libraries(test_old PRIVATE runtimeobject synchronization)
 
 target_include_directories(test_old PRIVATE
     "${CMAKE_BINARY_DIR}/test/old_tests/Composable"

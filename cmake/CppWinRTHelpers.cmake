@@ -16,12 +16,14 @@ cmake_minimum_required(VERSION 3.29)
 #   WINMD_OUT     – desired absolute output path for the .winmd file
 #   REF_WINMDS    – (optional multi-value) extra /reference winmd paths
 #   HEADER_OUT    – header file to emit (pass "nul" to suppress)
+#   EXTRA_DEPENDS – (optional multi-value) additional files the IDL depends on
+#                   (e.g. imported IDL files resolved via EXTRA_IDL_DIRS)
 #
 # The caller must declare the WINMD_OUT path as a source with the GENERATED
 # property so CMake doesn't complain at configure time.
 # ---------------------------------------------------------------------------
 function(winrt_midl_compile)
-    cmake_parse_arguments(MIDL "" "TARGET;IDL_FILE;WINMD_OUT;HEADER_OUT" "REF_WINMDS;EXTRA_IDL_DIRS" ${ARGN})
+    cmake_parse_arguments(MIDL "" "TARGET;IDL_FILE;WINMD_OUT;HEADER_OUT" "REF_WINMDS;EXTRA_IDL_DIRS;EXTRA_DEPENDS" ${ARGN})
 
     if(NOT MIDL_HEADER_OUT)
         set(MIDL_HEADER_OUT "nul")
@@ -87,7 +89,9 @@ function(winrt_midl_compile)
                 ${_ref_args}
                 ${_extra_inc_args}
                 "${_idl_abs}"
-        DEPENDS "${_idl_abs}"
+        DEPENDS
+            "${_idl_abs}"
+            ${MIDL_EXTRA_DEPENDS}
         COMMENT "MIDL: ${MIDL_IDL_FILE}"
         VERBATIM
     )

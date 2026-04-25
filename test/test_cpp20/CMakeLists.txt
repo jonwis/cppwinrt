@@ -1,9 +1,10 @@
 set(CMAKE_CXX_STANDARD 20)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # std::format, std::ranges::is_heap, std::views::reverse, std::ranges::max
     # are experimental in libc++ as of Clang 15.
     # FIXME: Should probably use compile test instead?
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexperimental-library")
+    add_compile_options(-fexperimental-library)
 endif()
 
 if(ENABLE_TEST_SANITIZERS)

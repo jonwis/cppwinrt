@@ -26,7 +26,7 @@ else()
     project(cppwinrt LANGUAGES CXX)
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CPPWINRT_BUILD_VERSION "999.999.999.999" CACHE STRING "The version string used for cppwinrt.")
@@ -106,7 +106,7 @@ add_custom_command(
         ${PROJECT_BINARY_DIR}/version.rc
     COMMAND "${PREBUILD_TOOL}" ARGS "${PROJECT_SOURCE_DIR}/strings" "${PROJECT_BINARY_DIR}"
     DEPENDS
-    cppwinrt-prebuild
+        cppwinrt-prebuild
         ${PREBUILD_STRINGS_FILES}
     VERBATIM
 )

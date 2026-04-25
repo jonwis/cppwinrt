@@ -18,6 +18,11 @@ if "%target_platform%"==""      set target_platform=x64
 if "%target_configuration%"=="" set target_configuration=Release
 if "%target_version%"==""       set target_version=999.999.999.999
 
+if /i "%clean_intermediate_files%"=="clean" (
+    echo Cleaning intermediate files...
+    git clean -dfx build/ >nul
+)
+
 set cmake_arch=%target_platform%
 if /i "%target_platform%"=="win32" set cmake_arch=x86
 
