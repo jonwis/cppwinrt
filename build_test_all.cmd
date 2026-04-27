@@ -4,7 +4,7 @@ setlocal
 rem build_test_all.cmd [platform] [config] [version] [clean_intermediate_files]
 rem
 rem  platform : x64 | x86 | arm64  (default: x64)
-rem  config   : Debug | Release     (default: Release)
+rem  config   : debug | release     (default: Release)
 rem  version  : build version string (default: 999.999.999.999)
 rem
 rem Uses cmake presets to configure/build, then ctest to execute tests.
@@ -15,7 +15,7 @@ set target_version=%3
 set clean_intermediate_files=%4
 
 if "%target_platform%"==""      set target_platform=x64
-if "%target_configuration%"=="" set target_configuration=Release
+if "%target_configuration%"=="" set target_configuration=release
 if "%target_version%"==""       set target_version=999.999.999.999
 
 if /i "%clean_intermediate_files%"=="clean" (
@@ -50,7 +50,7 @@ if /i "%target_platform%"=="arm64" goto :eof
 
 echo.
 echo === Running tests [%cmake_preset% / %target_configuration%] ===
-ctest --preset %cmake_preset%-%target_configuration% --output-on-failure
+ctest --preset %cmake_preset%-%target_configuration% --output-on-failure -j %NUMBER_OF_PROCESSORS%
 if %ERRORLEVEL% NEQ 0 goto :error
 
 goto :eof

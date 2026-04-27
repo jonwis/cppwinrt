@@ -13,7 +13,9 @@ if(_arch STREQUAL "win32")
     add_library(cppwinrt_fast_forwarder STATIC "${_asm_src}")
     set_source_files_properties("${_asm_src}" PROPERTIES
         LANGUAGE ASM_MASM
-        COMPILE_OPTIONS "/safeseh /I\"${CMAKE_CURRENT_SOURCE_DIR}\""   # x86 safe SEH + thunks.inc include path
+        # Pass MASM switches as separate options so VS/MSBuild does not treat
+        # the entire string as one invalid switch.
+        COMPILE_OPTIONS "/safeseh;/I${CMAKE_CURRENT_SOURCE_DIR}"   # x86 safe SEH + thunks.inc include path
     )
 elseif(_arch STREQUAL "x64")
     set(_asm_src "${CMAKE_CURRENT_SOURCE_DIR}/x64/thunks.asm")
@@ -21,7 +23,7 @@ elseif(_arch STREQUAL "x64")
     add_library(cppwinrt_fast_forwarder STATIC "${_asm_src}")
     set_source_files_properties("${_asm_src}" PROPERTIES
         LANGUAGE ASM_MASM
-        COMPILE_OPTIONS "/I\"${CMAKE_CURRENT_SOURCE_DIR}\""
+        COMPILE_OPTIONS "/I${CMAKE_CURRENT_SOURCE_DIR}"
     )
 elseif(_arch STREQUAL "arm64")
     # ARM64: preprocess the ASM source with cl /E, then assemble with MARMASM.
@@ -55,6 +57,15 @@ else()
 endif()
 
 set_target_properties(cppwinrt_fast_forwarder PROPERTIES OUTPUT_NAME "cppwinrt_fast_forwarder")
+
+# Keep output layout compatible with packaging scripts that consume
+# build/<preset>/<Config>/cppwinrt_fast_forwarder.lib.
+set_target_properties(cppwinrt_fast_forwarder PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
+    ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel"
+)
 
 install(TARGETS cppwinrt_fast_forwarder
     ARCHIVE DESTINATION lib
