@@ -56,12 +56,6 @@ jobs:
     displayName: Build Tools
     inputs:
       script: |
-        if "%VSCMD_VER%"=="" (
-            pushd c:
-            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" >nul 2>&1
-            popd
-        )
-
         build_test_all.cmd $(BuildPlatform) $(BuildConfiguration) $(Build.BuildNumber) true
       failOnStderr: true
 

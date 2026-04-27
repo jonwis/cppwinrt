@@ -9,6 +9,23 @@ if "%target_configuration%"=="" set target_configuration=Release
 if "%target_version%"=="" set target_version=999.999.999.999
 if "%target_deployment%"=="" set target_deployment=Standalone
 
+if /i "%target_configuration%"=="debug" (
+    set target_configuration=Debug
+) else (
+    set target_configuration=Release
+)
+
+set "CPPWINRT_VS_ENV_CONTINUE="
+call "%~dp0ensure_vs_env.cmd" x64 "%~f0" %*
+if not defined CPPWINRT_VS_ENV_CONTINUE exit /b %ERRORLEVEL%
+set "CPPWINRT_VS_ENV_CONTINUE="
+
+if not defined CPPWINRT_VSDEVCMD (
+	echo.
+	echo Visual Studio tools environment was initialized, but VsDevCmd.bat was not captured.
+	exit /b 1
+)
+
 set repo_dir=%~dp0
 set package_output=%repo_dir%build\packages
 set MSBUILD_EXE=

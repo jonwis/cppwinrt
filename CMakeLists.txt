@@ -1,12 +1,12 @@
 # Build system for cppwinrt.
 #
 # Supported configurations:
-#   - Visual Studio 2022 (MSVC or ClangCL) via CMakePresets.json
+#   - Ninja Multi-Config with MSVC or ClangCL via CMakePresets.json
 #   - MinGW / llvm-mingw (native or cross-compile from Linux)
 #
 # Recommended usage — pick a preset from CMakePresets.json:
 #   cmake --preset msvc-x64
-#   cmake --build build/msvc-x64 --config Release
+#   cmake --build --preset msvc-x64-release
 #   ctest --preset msvc-x64-release
 #
 # For mingw/cross-compile:
@@ -16,19 +16,89 @@
 cmake_minimum_required(VERSION 4.2)
 cmake_policy(VERSION 4.2)
 
-# Enable assembly languages when targeting MSVC (Visual Studio generator).
-# Must be listed before project() so the generator is fully configured.
-if(CMAKE_GENERATOR MATCHES "Visual Studio")
-    project(cppwinrt LANGUAGES CXX ASM_MASM)
-    # MARMASM support (ARM64 assembler) is also available via VS generator.
-    # We enable it only when actually building the arm64 sub-target; see
-    # fast_fwd/CMakeLists.txt for the per-architecture logic.
-else()
-    project(cppwinrt LANGUAGES CXX)
-endif()
+project(cppwinrt LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+function(cppwinrt_normalize_arch INPUT OUTPUT)
+    string(TOLOWER "${INPUT}" _arch)
+
+    if(_arch STREQUAL "win32" OR _arch STREQUAL "x86" OR _arch STREQUAL "i386" OR _arch STREQUAL "i686")
+        set(_normalized "x86")
+    elseif(_arch STREQUAL "x64" OR _arch STREQUAL "amd64" OR _arch STREQUAL "x86_64")
+        set(_normalized "x64")
+    elseif(_arch MATCHES "^arm64")
+        set(_normalized "arm64")
+    else()
+        set(_normalized "${_arch}")
+    endif()
+
+    set(${OUTPUT} "${_normalized}" PARENT_SCOPE)
+endfunction()
+
+set(CPPWINRT_TARGET_ARCH "")
+foreach(_arch_candidate
+        "${CMAKE_GENERATOR_PLATFORM}"
+        "${CMAKE_VS_PLATFORM_NAME}"
+        "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}"
+        "${CMAKE_SYSTEM_PROCESSOR}")
+    if(NOT _arch_candidate STREQUAL "")
+        cppwinrt_normalize_arch("${_arch_candidate}" CPPWINRT_TARGET_ARCH)
+        if(NOT CPPWINRT_TARGET_ARCH STREQUAL "")
+            break()
+        endif()
+    endif()
+endforeach()
+
+cppwinrt_normalize_arch("${CMAKE_HOST_SYSTEM_PROCESSOR}" CPPWINRT_HOST_ARCH)
+
+set(CPPWINRT_EXPECTED_TARGET_ARCH "" CACHE STRING "Expected target architecture for preset-driven Windows builds.")
+if(NOT CPPWINRT_EXPECTED_TARGET_ARCH STREQUAL "")
+    cppwinrt_normalize_arch("${CPPWINRT_EXPECTED_TARGET_ARCH}" _cppwinrt_expected_target_arch)
+    if(NOT _cppwinrt_expected_target_arch STREQUAL CPPWINRT_TARGET_ARCH)
+        message(FATAL_ERROR
+            "Preset expects target architecture '${_cppwinrt_expected_target_arch}', "
+            "but the current toolchain is targeting '${CPPWINRT_TARGET_ARCH}'. "
+            "Run from a matching Visual Studio tools environment or use the root build scripts."
+        )
+    endif()
+endif()
+
+if(MSVC AND CPPWINRT_TARGET_ARCH STREQUAL "")
+    message(FATAL_ERROR
+        "Could not determine the active MSVC target architecture. "
+        "Run from a matching Visual Studio tools environment or use the root build scripts."
+    )
+endif()
+
+set(CPPWINRT_PREBUILD_TOOL "" CACHE FILEPATH "Path to a host cppwinrt-prebuild executable.")
+if(MSVC AND CPPWINRT_TARGET_ARCH STREQUAL "arm64" AND NOT CPPWINRT_HOST_ARCH STREQUAL "arm64" AND CPPWINRT_PREBUILD_TOOL STREQUAL "")
+    message(FATAL_ERROR
+        "ARM64 builds from a non-ARM64 host require CPPWINRT_PREBUILD_TOOL to point to a host-built cppwinrt-prebuild executable. "
+        "Use the root build scripts, which bootstrap that tool automatically."
+    )
+endif()
+
+set(CPPWINRT_HOST_EXE "" CACHE FILEPATH "Path to a host cppwinrt executable for code generation.")
+if(MSVC AND CPPWINRT_TARGET_ARCH STREQUAL "arm64" AND NOT CPPWINRT_HOST_ARCH STREQUAL "arm64" AND CPPWINRT_HOST_EXE STREQUAL "")
+    message(FATAL_ERROR
+        "ARM64 builds from a non-ARM64 host require CPPWINRT_HOST_EXE to point to a host-built cppwinrt executable. "
+        "Use the root build scripts, which bootstrap that tool automatically."
+    )
+endif()
+
+if(MSVC)
+    set(CPPWINRT_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/_build/${CPPWINRT_TARGET_ARCH}")
+    foreach(_config Debug Release RelWithDebInfo MinSizeRel)
+        string(TOUPPER "${_config}" _config_upper)
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${_config_upper} "${CPPWINRT_OUTPUT_DIR}/${_config}")
+        set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${_config_upper} "${CPPWINRT_OUTPUT_DIR}/${_config}")
+        set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${_config_upper} "${CPPWINRT_OUTPUT_DIR}/${_config}")
+        set(CMAKE_PDB_OUTPUT_DIRECTORY_${_config_upper} "${CPPWINRT_OUTPUT_DIR}/${_config}")
+        set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY_${_config_upper} "${CPPWINRT_OUTPUT_DIR}/${_config}")
+    endforeach()
+endif()
 
 set(CPPWINRT_BUILD_VERSION "999.999.999.999" CACHE STRING "The version string used for cppwinrt.")
 if(CPPWINRT_BUILD_VERSION STREQUAL "999.999.999.999" OR CPPWINRT_BUILD_VERSION STREQUAL "0.0.0.0")
@@ -64,7 +134,7 @@ if(MSVC)
             -fno-delayed-template-parsing
         )
         # mcx16 is x86/x64-specific; ClangCL ARM64 doesn't need it
-        if(NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+        if(NOT CPPWINRT_TARGET_ARCH STREQUAL "arm64")
             add_compile_options(-mcx16)
         endif()
     endif()
@@ -81,7 +151,13 @@ endif()
 # === prebuild: Generator tool for strings.cpp, strings.h, version.rc ===
 # ---------------------------------------------------------------------------
 
-if(CMAKE_CROSSCOMPILING)
+if(NOT CPPWINRT_PREBUILD_TOOL STREQUAL "")
+    if(NOT EXISTS "${CPPWINRT_PREBUILD_TOOL}")
+        message(FATAL_ERROR "CPPWINRT_PREBUILD_TOOL does not exist: ${CPPWINRT_PREBUILD_TOOL}")
+    endif()
+    set(PREBUILD_TOOL "${CPPWINRT_PREBUILD_TOOL}")
+    set(PREBUILD_TOOL_DEPENDS "${CPPWINRT_PREBUILD_TOOL}")
+elseif(CMAKE_CROSSCOMPILING)
     include(ExternalProject)
     ExternalProject_Add(cppwinrt-prebuild
         SOURCE_DIR "${PROJECT_SOURCE_DIR}/prebuild"
@@ -89,10 +165,12 @@ if(CMAKE_CROSSCOMPILING)
     )
     ExternalProject_Get_Property(cppwinrt-prebuild INSTALL_DIR)
     set(PREBUILD_TOOL "${INSTALL_DIR}/bin/cppwinrt-prebuild")
+    set(PREBUILD_TOOL_DEPENDS cppwinrt-prebuild)
     unset(INSTALL_DIR)
 else()
     add_subdirectory(prebuild)
     set(PREBUILD_TOOL cppwinrt-prebuild)
+    set(PREBUILD_TOOL_DEPENDS cppwinrt-prebuild)
 endif()
 
 
@@ -111,7 +189,7 @@ add_custom_command(
         ${PROJECT_BINARY_DIR}/version.rc
     COMMAND "${PREBUILD_TOOL}" ARGS "${PROJECT_SOURCE_DIR}/strings" "${PROJECT_BINARY_DIR}"
     DEPENDS
-        cppwinrt-prebuild
+        ${PREBUILD_TOOL_DEPENDS}
         ${PREBUILD_STRINGS_FILES}
     VERBATIM
 )
@@ -145,20 +223,27 @@ if(WIN32)
         DEPENDS "${PROJECT_SOURCE_DIR}/cppwinrt/app.manifest"
         VERBATIM
     )
-    # Do the configure_file dance so that app.manifest.rc don't get modified every
-    # single time the project is reconfigured and trigger a rebuild.
-    file(WRITE "${PROJECT_BINARY_DIR}/app.manifest.rc.in" "1 24 \"app.manifest\"\n")
-    configure_file(
-        "${PROJECT_BINARY_DIR}/app.manifest.rc.in"
-        "${PROJECT_BINARY_DIR}/app.manifest.rc"
-        COPYONLY
-    )
+    if(MSVC)
+        set(CPPWINRT_RESOURCES
+            "${PROJECT_BINARY_DIR}/app.manifest"
+            "${PROJECT_BINARY_DIR}/version.rc"
+        )
+    else()
+        # Do the configure_file dance so that app.manifest.rc doesn't get modified
+        # every single time the project is reconfigured and trigger a rebuild.
+        file(WRITE "${PROJECT_BINARY_DIR}/app.manifest.rc.in" "1 24 \"app.manifest\"\n")
+        configure_file(
+            "${PROJECT_BINARY_DIR}/app.manifest.rc.in"
+            "${PROJECT_BINARY_DIR}/app.manifest.rc"
+            COPYONLY
+        )
 
-    set(CPPWINRT_RESOURCES
-        "${PROJECT_BINARY_DIR}/app.manifest"
-        "${PROJECT_BINARY_DIR}/app.manifest.rc"
-        "${PROJECT_BINARY_DIR}/version.rc"
-    )
+        set(CPPWINRT_RESOURCES
+            "${PROJECT_BINARY_DIR}/app.manifest"
+            "${PROJECT_BINARY_DIR}/app.manifest.rc"
+            "${PROJECT_BINARY_DIR}/version.rc"
+        )
+    endif()
 endif()
 
 add_executable(cppwinrt ${CPPWINRT_SRCS} ${CPPWINRT_RESOURCES} ${CPPWINRT_HEADERS})
@@ -169,13 +254,18 @@ if(WIN32)
     target_link_libraries(cppwinrt PRIVATE shlwapi)
 endif()
 
-if(MSVC)
-    # app.manifest is embedded via app.manifest.rc, so disable the default
-    # linker-generated manifest to avoid duplicate MANIFEST resources.
-    target_link_options(cppwinrt PRIVATE /MANIFEST:NO)
-endif()
-
 install(TARGETS cppwinrt)
+
+if(NOT CPPWINRT_HOST_EXE STREQUAL "")
+    if(NOT EXISTS "${CPPWINRT_HOST_EXE}")
+        message(FATAL_ERROR "CPPWINRT_HOST_EXE does not exist: ${CPPWINRT_HOST_EXE}")
+    endif()
+    set(CPPWINRT_TOOL_COMMAND "${CPPWINRT_HOST_EXE}")
+    set(CPPWINRT_TOOL_DEPENDS "${CPPWINRT_HOST_EXE}")
+else()
+    set(CPPWINRT_TOOL_COMMAND "$<TARGET_FILE:cppwinrt>")
+    set(CPPWINRT_TOOL_DEPENDS cppwinrt)
+endif()
 
 
 # ---------------------------------------------------------------------------

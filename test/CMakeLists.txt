@@ -13,11 +13,20 @@ else()
     set(STANDALONE_TESTING OFF)
 endif()
 
+if(NOT DEFINED CPPWINRT_TOOL_COMMAND)
+    set(CPPWINRT_TOOL_COMMAND cppwinrt)
+    set(CPPWINRT_TOOL_DEPENDS cppwinrt)
+endif()
+
 # Default all tests to C++17; cpp20-specific test projects opt into C++20.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+if(DEFINED CPPWINRT_OUTPUT_DIR)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CPPWINRT_OUTPUT_DIR}")
+else()
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../cppwinrt")
@@ -84,10 +93,10 @@ else()
             "${_projection_stamp}"
         BYPRODUCTS
             "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/winrt/base.h"
-        COMMAND cppwinrt -input local -output "${CPPWINRT_PROJECTION_INCLUDE_DIR}" -verbose
+        COMMAND "${CPPWINRT_TOOL_COMMAND}" -input local -output "${CPPWINRT_PROJECTION_INCLUDE_DIR}" -verbose
         COMMAND "${CMAKE_COMMAND}" -E touch "${_projection_stamp}"
         DEPENDS
-            cppwinrt
+            ${CPPWINRT_TOOL_DEPENDS}
         VERBATIM
     )
     add_custom_target(build-cppwinrt-projection
@@ -159,8 +168,14 @@ if(MSVC AND NOT CMAKE_CROSSCOMPILING)
     find_program(MSBUILD_EXECUTABLE msbuild)
     if(MSBUILD_EXECUTABLE)
         set(_nuget_sln "${CMAKE_SOURCE_DIR}/test/nuget/NuGetTest.sln")
-        set(_nuget_platform "${CMAKE_GENERATOR_PLATFORM}")
-        if(_nuget_platform STREQUAL "Win32")
+        set(_nuget_platform "${CPPWINRT_TARGET_ARCH}")
+        if(_nuget_platform STREQUAL "x86")
+            set(_nuget_platform "Win32")
+        elseif(_nuget_platform STREQUAL "x64")
+            set(_nuget_platform "x64")
+        elseif(_nuget_platform STREQUAL "arm64")
+            set(_nuget_platform "arm64")
+        elseif(_nuget_platform STREQUAL "Win32")
             # msbuild uses "Win32" already
         elseif(_nuget_platform STREQUAL "")
             set(_nuget_platform "x64")

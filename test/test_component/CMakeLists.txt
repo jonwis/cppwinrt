@@ -34,11 +34,11 @@ add_custom_command(
         "${_module_g}"
     BYPRODUCTS
         "${_bindir}/winrt/test_component.h"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -in local
             -out "${_bindir}"
             -verbose
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"
             -out   "${_bindir}"
@@ -48,7 +48,7 @@ add_custom_command(
             -name test_component
             -verbose
     DEPENDS
-        cppwinrt
+        ${CPPWINRT_TOOL_DEPENDS}
         "${_winmd}"
     COMMENT "cppwinrt: projecting + generating test_component stubs"
     VERBATIM

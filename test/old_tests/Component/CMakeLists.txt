@@ -21,7 +21,7 @@ set(_module_g "${_gendir}/module.g.cpp")
 
 add_custom_command(
     OUTPUT  "${_module_g}"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -ref   "${_composable_winmd}"
             -ref sdk
@@ -29,7 +29,7 @@ add_custom_command(
             -out   "${_bindir}"
             -verbose
     DEPENDS
-        cppwinrt
+        ${CPPWINRT_TOOL_DEPENDS}
         "${_winmd}"
         "${_composable_winmd}"
     COMMENT "cppwinrt: generating Component stubs"

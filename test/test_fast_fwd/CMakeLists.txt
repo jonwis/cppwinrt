@@ -27,13 +27,13 @@ add_custom_command(
             "${_bindir}/winrt/fast_forward.h"
             "${_bindir}/winrt/FastForwarderTest.h"
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${_bindir}"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_fast_winmd}"
             -out   "${_bindir}"
             -ref sdk
             -fastabi
             -verbose
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_fwd_winmd}"
             -out   "${_bindir}"
             -comp  "${_bindir}/stubs"
@@ -44,7 +44,7 @@ add_custom_command(
             -verbose
     COMMAND "${CMAKE_COMMAND}" -E touch "${_projection_stamp}"
     DEPENDS
-        cppwinrt
+        ${CPPWINRT_TOOL_DEPENDS}
         "${_fast_winmd}"
         "${_fwd_winmd}"
     COMMENT "cppwinrt: generating fast-ABI headers for test_fast_fwd"

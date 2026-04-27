@@ -4,10 +4,10 @@
 # ARM64 requires preprocessing with cl.exe before the MARMASM pass (exactly
 # as the original fast_fwd.vcxproj did).
 
-# Determine target architecture from the VS generator platform.
-string(TOLOWER "${CMAKE_GENERATOR_PLATFORM}" _arch)
+# Determine target architecture from the active MSVC toolchain.
+set(_arch "${CPPWINRT_TARGET_ARCH}")
 
-if(_arch STREQUAL "win32")
+if(_arch STREQUAL "x86")
     set(_asm_src "${CMAKE_CURRENT_SOURCE_DIR}/win32/thunks.asm")
     enable_language(ASM_MASM)
     add_library(cppwinrt_fast_forwarder STATIC "${_asm_src}")
@@ -51,7 +51,7 @@ elseif(_arch STREQUAL "arm64")
         GENERATED TRUE
     )
 else()
-    message(WARNING "fast_fwd: unrecognised platform '${CMAKE_GENERATOR_PLATFORM}'; "
+    message(WARNING "fast_fwd: unrecognised platform '${CPPWINRT_TARGET_ARCH}'; "
                     "skipping cppwinrt_fast_forwarder")
     add_library(cppwinrt_fast_forwarder INTERFACE)
 endif()
@@ -59,12 +59,12 @@ endif()
 set_target_properties(cppwinrt_fast_forwarder PROPERTIES OUTPUT_NAME "cppwinrt_fast_forwarder")
 
 # Keep output layout compatible with packaging scripts that consume
-# build/<preset>/<Config>/cppwinrt_fast_forwarder.lib.
+# _build/<arch>/<Config>/cppwinrt_fast_forwarder.lib.
 set_target_properties(cppwinrt_fast_forwarder PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
-    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
-    ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
-    ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel"
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CPPWINRT_OUTPUT_DIR}/Debug"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CPPWINRT_OUTPUT_DIR}/Release"
+    ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CPPWINRT_OUTPUT_DIR}/RelWithDebInfo"
+    ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL "${CPPWINRT_OUTPUT_DIR}/MinSizeRel"
 )
 
 install(TARGETS cppwinrt_fast_forwarder

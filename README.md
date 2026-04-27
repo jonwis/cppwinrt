@@ -13,9 +13,9 @@ Don't build C++/WinRT yourself - just download the latest version here: https://
 
 ## Working on the compiler
 
-If you really want to build it yourself, the simplest way to do so is to run the `build_test_all.cmd` script in the root directory. Developers needing to work on the C++/WinRT compiler itself should go through the following steps to arrive at an efficient inner loop:
+If you really want to build it yourself, the simplest way to do so is to run the `build_test_all.cmd` script in the root directory. The root build scripts will bootstrap a matching Visual Studio tools environment with `vswhere` when needed. Developers needing to work on the C++/WinRT compiler itself should go through the following steps to arrive at an efficient inner loop:
 
-* Open a dev command prompt pointing at the root of the repo.
+* Open any command prompt pointing at the root of the repo, or a matching Visual Studio developer prompt if you are driving CMake directly.
 * Open the repo root as a folder in Visual Studio or VS Code
 * Choose a configuration (x64, x86, Release, Debug) and build projects as needed.
 
@@ -27,10 +27,10 @@ If you are working on an ARM64 specific issue from an x64 or x86 host, you will 
 ## Comparing Outputs
 
 Comparing the output of the prior release and your current changes will help show the impact of any updates. Starting from
-a dev command prompt at the root of the repo _after_ following the above build instructions:
+a command prompt at the root of the repo _after_ following the above build instructions:
 
-* Run `build_projection.cmd` in the dev command prompt
-* Run `build_prior_projection.cmd` in the dev command prompt as well
+* Run `build_projection.cmd`
+* Run `build_prior_projection.cmd` as well
 * Run `prepare_versionless_diffs.cmd` which removes version stamps on both current and prior projection
 * Use a directory-level differencing tool to compare `build\$(arch)\$(flavor)\winrt` and `_reference\$(arch)\$(flavor)\winrt`
 

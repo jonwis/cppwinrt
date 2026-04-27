@@ -20,14 +20,14 @@ add_custom_command(
     BYPRODUCTS
         "${_bindir}/winrt/test_component_folders.h"
         "${_bindir}/winrt/test_component_folders.Nested.h"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"
             -out   "${_bindir}"
             -ref sdk
             -verbose -overwrite
             -name test_component_folders
-    DEPENDS cppwinrt "${_winmd}"
+    DEPENDS ${CPPWINRT_TOOL_DEPENDS} "${_winmd}"
     COMMENT "cppwinrt: generating test_component_folders stubs"
     VERBATIM
 )

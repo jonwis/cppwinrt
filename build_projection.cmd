@@ -29,13 +29,24 @@ if "%target_configuration%"=="" (
 )
 
 set repo_dir=%~dp0
-set cppwinrt_exe=%repo_dir%build\msvc-x64\Release\cppwinrt.exe
+if /i "%target_configuration%"=="debug" (
+ set target_configuration=Debug
+) else (
+ set target_configuration=Release
+)
+
+set "CPPWINRT_VS_ENV_CONTINUE="
+call "%~dp0ensure_vs_env.cmd" x64 "%~f0" %*
+if not defined CPPWINRT_VS_ENV_CONTINUE exit /b %ERRORLEVEL%
+set "CPPWINRT_VS_ENV_CONTINUE="
+
+set cppwinrt_exe=%repo_dir%_build\x64\Release\cppwinrt.exe
 
 if not exist "%cppwinrt_exe%" (
  echo Configuring and building cppwinrt tool via CMake...
  cmake --preset msvc-x64 -DCPPWINRT_BUILD_VERSION=%target_version%
  if %ERRORLEVEL% NEQ 0 goto :error
- cmake --build build\msvc-x64 --config Release --target cppwinrt -j
+ cmake --build _build\msvc-x64 --config Release --target cppwinrt -j
  if %ERRORLEVEL% NEQ 0 goto :error
 )
 

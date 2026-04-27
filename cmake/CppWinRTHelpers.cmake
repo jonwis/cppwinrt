@@ -37,11 +37,10 @@ function(winrt_midl_compile)
             "C:/Program Files (x86)/Windows Kits/10/bin/x64"
     )
 
-    # Map CMake generator platform to midl /env string
-    string(TOLOWER "${CMAKE_GENERATOR_PLATFORM}" _gen_plat)
-    if(_gen_plat STREQUAL "win32")
+    # Map the active target architecture to midl /env.
+    if(CPPWINRT_TARGET_ARCH STREQUAL "x86")
         set(_midl_env "win32")
-    elseif(_gen_plat STREQUAL "arm64")
+    elseif(CPPWINRT_TARGET_ARCH STREQUAL "arm64")
         set(_midl_env "arm64")
     else()
         set(_midl_env "amd64")
@@ -131,7 +130,7 @@ function(winrt_cppwinrt_component)
     add_custom_command(
         OUTPUT  "${_module_g}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${COMP_GENERATED_DIR}"
-        COMMAND "$<TARGET_FILE:cppwinrt>"
+        COMMAND "${CPPWINRT_TOOL_COMMAND}"
                 -input "${COMP_WINMD}"
                 ${_ref_args}
                 -ref sdk
@@ -143,7 +142,7 @@ function(winrt_cppwinrt_component)
                 "${_stubs_dir}/module.g.cpp"
                 "${_module_g}"
         DEPENDS
-            cppwinrt
+            ${CPPWINRT_TOOL_DEPENDS}
             "${COMP_WINMD}"
             ${COMP_DEPENDS_WINMDS}
         COMMENT "cppwinrt component stubs: ${COMP_TARGET}"
@@ -204,7 +203,7 @@ function(winrt_cppwinrt_projection_target)
         OUTPUT  "${_projection_stamp}"
         BYPRODUCTS ${PROJ_BYPRODUCTS}
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${PROJ_OUTPUT_DIR}"
-        COMMAND "$<TARGET_FILE:cppwinrt>"
+        COMMAND "${CPPWINRT_TOOL_COMMAND}"
                 -input "${PROJ_WINMD}"
                 -out   "${PROJ_OUTPUT_DIR}"
                 ${_ref_args}
@@ -214,7 +213,7 @@ function(winrt_cppwinrt_projection_target)
                 ${PROJ_EXTRA_ARGS}
         COMMAND "${CMAKE_COMMAND}" -E touch "${_projection_stamp}"
         DEPENDS
-            cppwinrt
+            ${CPPWINRT_TOOL_DEPENDS}
             "${PROJ_WINMD}"
             ${PROJ_DEPENDS}
         COMMENT "cppwinrt: generating projection for ${PROJ_NAME}"

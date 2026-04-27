@@ -57,25 +57,33 @@ jobs:
 
       - name: Build cppwinrt
         run: |
-          cmake --preset ${{ matrix.compiler }}-${{ matrix.arch }}
-          cmake --build --preset ${{ matrix.compiler }}-${{ matrix.arch }}-${{ matrix.config }} -j
+          $target_platform = "${{ matrix.arch }}"
+          if ($target_platform -eq 'arm64') {
+            cmd /d /s /c "`"$env:VSDevCmd`" -no_logo -host_arch=x64 -arch=x64 && cmake --preset ${{ matrix.compiler }}-x64 && cmake --build --preset ${{ matrix.compiler }}-x64-${{ matrix.config }} --target cppwinrt cppwinrt-prebuild -j"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            $prebuildTool = Join-Path $PWD '_build\x64\Release\cppwinrt-prebuild.exe'
+            $hostCppWinRT = Join-Path $PWD '_build\x64\Release\cppwinrt.exe'
+            cmd /d /s /c "`"$env:VSDevCmd`" -no_logo -host_arch=x64 -arch=$target_platform && cmake --preset ${{ matrix.compiler }}-${{ matrix.arch }} -DCPPWINRT_PREBUILD_TOOL=$prebuildTool -DCPPWINRT_HOST_EXE=$hostCppWinRT && cmake --build --preset ${{ matrix.compiler }}-${{ matrix.arch }}-${{ matrix.config }} -j"
+          } else {
+            cmd /d /s /c "`"$env:VSDevCmd`" -no_logo -host_arch=x64 -arch=$target_platform && cmake --preset ${{ matrix.compiler }}-${{ matrix.arch }} && cmake --build --preset ${{ matrix.compiler }}-${{ matrix.arch }}-${{ matrix.config }} -j"
+          }
 
       - name: Build x86 prebuild tool
         if: matrix.arch == 'arm64'
         run: |
-          cmake --preset ${{ matrix.compiler }}-x86
-          cmake --build --preset ${{ matrix.compiler }}-x86-${{ matrix.config }} -j
+          cmd /d /s /c "`"$env:VSDevCmd`" -no_logo -host_arch=x64 -arch=x86 && cmake --preset ${{ matrix.compiler }}-x86 && cmake --build --preset ${{ matrix.compiler }}-x86-${{ matrix.config }} -j"
 
       - name: Upload built executables
         uses: actions/upload-artifact@v7
         with:
           name: msvc-build-${{ matrix.compiler}}-${{ matrix.arch }}-${{ matrix.config }}-${{ matrix.toolchain.platform_toolset }}-bin
           path: |
-            _build/${{ matrix.arch }}-${{ matrix.config }}/*.exe
-            _build/${{ matrix.arch }}-${{ matrix.config }}/*.dll
-            _build/${{ matrix.arch }}-${{ matrix.config }}/*.winmd
-            _build/${{ matrix.arch }}-${{ matrix.config }}/*.lib
-            _build/${{ matrix.arch }}-${{ matrix.config }}/*.pdb
+            _build/${{ matrix.arch }}/${{ matrix.config }}/*.exe
+            _build/${{ matrix.arch }}/${{ matrix.config }}/*.dll
+            _build/${{ matrix.arch }}/${{ matrix.config }}/*.winmd
+            _build/${{ matrix.arch }}/${{ matrix.config }}/*.lib
+            _build/${{ matrix.arch }}/${{ matrix.config }}/*.pdb
 
       - name: Run cppwinrt to build projection
         if: matrix.arch != 'arm64'

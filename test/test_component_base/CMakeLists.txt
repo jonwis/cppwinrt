@@ -19,14 +19,14 @@ add_custom_command(
     OUTPUT  "${_module_g}"
     BYPRODUCTS
         "${_bindir}/winrt/test_component_base.h"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"
             -out   "${_bindir}"
             -ref sdk
             -name test_component_base
             -verbose
-    DEPENDS cppwinrt "${_winmd}"
+    DEPENDS ${CPPWINRT_TOOL_DEPENDS} "${_winmd}"
     COMMENT "cppwinrt: generating test_component_base stubs"
     VERBATIM
 )

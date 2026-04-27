@@ -24,7 +24,7 @@ add_custom_command(
     BYPRODUCTS
         "${_bindir}/winrt/test_component_derived.h"
         "${_bindir}/winrt/test_component_derived.Nested.h"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -ref   "${_base_winmd}"
             -ref sdk
@@ -33,7 +33,7 @@ add_custom_command(
             -name test_component_derived
             -verbose
     DEPENDS
-        cppwinrt
+        ${CPPWINRT_TOOL_DEPENDS}
         "${_winmd}"
         "${_base_winmd}"
     COMMENT "cppwinrt: generating test_component_derived stubs"

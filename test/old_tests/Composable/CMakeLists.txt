@@ -18,7 +18,7 @@ set(_module_g "${_gendir}/module.g.cpp")
 
 add_custom_command(
     OUTPUT  "${_module_g}"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"
             -out   "${_bindir}"
@@ -26,7 +26,7 @@ add_custom_command(
             -pch precomp.hpp
             -name Composable
             -verbose
-    DEPENDS cppwinrt "${_winmd}"
+    DEPENDS ${CPPWINRT_TOOL_DEPENDS} "${_winmd}"
     COMMENT "cppwinrt: generating Composable stubs"
     VERBATIM
 )

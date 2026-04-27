@@ -23,7 +23,7 @@ add_custom_command(
     BYPRODUCTS
         "${_bindir}/winrt/test_component_fast.h"
         "${_bindir}/winrt/test_component_fast.Composition.h"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"
             -out   "${_bindir}"
@@ -31,7 +31,7 @@ add_custom_command(
             -fastabi -prefix -opt
             -name test_component_fast
             -verbose
-    DEPENDS cppwinrt "${_winmd}"
+    DEPENDS ${CPPWINRT_TOOL_DEPENDS} "${_winmd}"
     COMMENT "cppwinrt: generating test_component_fast stubs"
     VERBATIM
 )

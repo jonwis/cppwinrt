@@ -22,7 +22,7 @@ add_custom_command(
         "${_bindir}/winrt/test_component_no_pch.h"
         "${_bindir}/winrt/test_component_no_pch.Peer1.h"
         "${_bindir}/winrt/test_component_no_pch.Peer2.h"
-    COMMAND "$<TARGET_FILE:cppwinrt>"
+    COMMAND "${CPPWINRT_TOOL_COMMAND}"
             -input "${_winmd}"
             -comp  "${_bindir}/stubs"
             -out   "${_bindir}"
@@ -30,7 +30,7 @@ add_custom_command(
             -verbose -overwrite
             -pch .
             -name test_component_no_pch
-    DEPENDS cppwinrt "${_winmd}"
+    DEPENDS ${CPPWINRT_TOOL_DEPENDS} "${_winmd}"
     COMMENT "cppwinrt: generating test_component_no_pch stubs"
     VERBATIM
 )
