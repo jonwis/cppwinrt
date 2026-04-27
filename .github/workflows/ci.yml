@@ -11,9 +11,9 @@ jobs:
     name: '${{ matrix.compiler }}: Build (${{ matrix.arch }}, ${{ matrix.config }}, ${{ matrix.toolchain.platform_toolset }})'
     strategy:
       matrix:
-        compiler: [MSVC, clang-cl]
+        compiler: [msvc, clang-cl]
         arch: [x86, x64, arm64]
-        config: [Debug, Release]
+        config: [debug, release]
         toolchain:
           - image: windows-2025
             platform_toolset: v143
@@ -55,33 +55,27 @@ jobs:
           }
           Add-Content $env:GITHUB_ENV "msbuild_config_props=/p:$props"
 
-      - name: Restore nuget packages
+      - name: Build cppwinrt
         run: |
-          cmd /c "$env:VSDevCmd" "&" nuget restore cppwinrt.sln
-
-      - name: Build fast_fwd
-        run: |
-          cmd /c "$env:VSDevCmd" "&" msbuild /m /clp:ForceConsoleColor "$env:msbuild_config_props" cppwinrt.sln /t:fast_fwd
+          cmake --preset ${{ matrix.compiler }}-${{ matrix.arch }}
+          cmake --build --preset ${{ matrix.compiler }}-${{ matrix.arch }}-${{ matrix.config }} -j
 
       - name: Build x86 prebuild tool
         if: matrix.arch == 'arm64'
         run: |
-          cmd /c "$env:VSDevCmd" "&" msbuild /m /clp:ForceConsoleColor "$env:msbuild_config_props" /p:Platform=x86 cppwinrt.sln /t:cppwinrt
-
-      - name: Build cppwinrt
-        run: |
-          cmd /c "$env:VSDevCmd" "&" msbuild /m /clp:ForceConsoleColor "$env:msbuild_config_props" cppwinrt.sln /t:cppwinrt
+          cmake --preset ${{ matrix.compiler }}-x86
+          cmake --build --preset ${{ matrix.compiler }}-x86-${{ matrix.config }} -j
 
       - name: Upload built executables
         uses: actions/upload-artifact@v7
         with:
           name: msvc-build-${{ matrix.compiler}}-${{ matrix.arch }}-${{ matrix.config }}-${{ matrix.toolchain.platform_toolset }}-bin
           path: |
-            _build/${{ matrix.arch }}/${{ matrix.config }}/*.exe
-            _build/${{ matrix.arch }}/${{ matrix.config }}/*.dll
-            _build/${{ matrix.arch }}/${{ matrix.config }}/*.winmd
-            _build/${{ matrix.arch }}/${{ matrix.config }}/*.lib
-            _build/${{ matrix.arch }}/${{ matrix.config }}/*.pdb
+            _build/${{ matrix.arch }}-${{ matrix.config }}/*.exe
+            _build/${{ matrix.arch }}-${{ matrix.config }}/*.dll
+            _build/${{ matrix.arch }}-${{ matrix.config }}/*.winmd
+            _build/${{ matrix.arch }}-${{ matrix.config }}/*.lib
+            _build/${{ matrix.arch }}-${{ matrix.config }}/*.pdb
 
       - name: Run cppwinrt to build projection
         if: matrix.arch != 'arm64'
@@ -96,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [MSVC, clang-cl]
+        compiler: [msvc, clang-cl]
         arch: [x86, x64, arm64]
         config: [Debug, Release]
         test_exe: [test, test_nocoro, test_cpp20, test_cpp20_no_sourcelocation, test_fast, test_slow, test_old, test_module_lock_custom, test_module_lock_none]

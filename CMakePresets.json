@@ -6,7 +6,7 @@
     {
       "name": "base",
       "hidden": true,
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/_build/${presetName}",
       "cacheVariables": {
         "CPPWINRT_BUILD_VERSION": "999.999.999.999",
         "BUILD_TESTING": "ON"
@@ -60,21 +60,21 @@
     },
 
     {
-      "name": "clang-x64",
+      "name": "clang-cl-x64",
       "displayName": "ClangCL x64",
       "description": "Visual Studio 2022 ClangCL, x64",
       "inherits": "clang-base",
       "architecture": { "value": "x64", "strategy": "set" }
     },
     {
-      "name": "clang-x86",
+      "name": "clang-cl-x86",
       "displayName": "ClangCL x86",
       "description": "Visual Studio 2022 ClangCL, x86 (Win32)",
       "inherits": "clang-base",
       "architecture": { "value": "Win32", "strategy": "set" }
     },
     {
-      "name": "clang-arm64",
+      "name": "clang-cl-arm64",
       "displayName": "ClangCL ARM64",
       "description": "Visual Studio 2022 ClangCL, ARM64",
       "inherits": "clang-base",
@@ -119,28 +119,28 @@
       "configurePreset": "msvc-arm64", "configuration": "Release"
     },
     {
-      "name": "clang-x64-debug",   "displayName": "ClangCL x64 Debug",
-      "configurePreset": "clang-x64",  "configuration": "Debug"
+      "name": "clang-cl-x64-debug",   "displayName": "ClangCL x64 Debug",
+      "configurePreset": "clang-cl-x64",  "configuration": "Debug"
     },
     {
-      "name": "clang-x64-release", "displayName": "ClangCL x64 Release",
-      "configurePreset": "clang-x64",  "configuration": "Release"
+      "name": "clang-cl-x64-release", "displayName": "ClangCL x64 Release",
+      "configurePreset": "clang-cl-x64",  "configuration": "Release"
     },
     {
-      "name": "clang-x86-debug",   "displayName": "ClangCL x86 Debug",
-      "configurePreset": "clang-x86",  "configuration": "Debug"
+      "name": "clang-cl-x86-debug",   "displayName": "ClangCL x86 Debug",
+      "configurePreset": "clang-cl-x86",  "configuration": "Debug"
     },
     {
-      "name": "clang-x86-release", "displayName": "ClangCL x86 Release",
-      "configurePreset": "clang-x86",  "configuration": "Release"
+      "name": "clang-cl-x86-release", "displayName": "ClangCL x86 Release",
+      "configurePreset": "clang-cl-x86",  "configuration": "Release"
     },
     {
-      "name": "clang-arm64-debug",   "displayName": "ClangCL ARM64 Debug",
-      "configurePreset": "clang-arm64","configuration": "Debug"
+      "name": "clang-cl-arm64-debug",   "displayName": "ClangCL ARM64 Debug",
+      "configurePreset": "clang-cl-arm64","configuration": "Debug"
     },
     {
-      "name": "clang-arm64-release", "displayName": "ClangCL ARM64 Release",
-      "configurePreset": "clang-arm64","configuration": "Release"
+      "name": "clang-cl-arm64-release", "displayName": "ClangCL ARM64 Release",
+      "configurePreset": "clang-cl-arm64","configuration": "Release"
     }
   ],
 
@@ -154,11 +154,11 @@
       "configuration": "Release", "output": { "outputOnFailure": true }
     },
     {
-      "name": "clang-x64-debug",  "configurePreset": "clang-x64",
+      "name": "clang-cl-x64-debug",  "configurePreset": "clang-cl-x64",
       "configuration": "Debug",   "output": { "outputOnFailure": true }
     },
     {
-      "name": "clang-x64-release","configurePreset": "clang-x64",
+      "name": "clang-cl-x64-release","configurePreset": "clang-cl-x64",
       "configuration": "Release", "output": { "outputOnFailure": true }
     }
   ]
