@@ -67,44 +67,51 @@ namespace cppwinrt
 
     static void write_namespace_0_h(std::string_view const& ns, cache::namespace_members const& members)
     {
+        auto interfaces = get_projected_types(members.interfaces);
+        auto classes = get_projected_types(members.classes);
+        auto enums = get_projected_types(members.enums);
+        auto structs = get_projected_types(members.structs);
+        auto delegates = get_projected_types(members.delegates);
+        auto contracts = get_projected_types(members.contracts);
+
         writer w;
         w.type_namespace = ns;
 
         {
             auto wrap_type = wrap_type_namespace(w, ns);
-            w.write_each<write_enum>(members.enums);
-            w.write_each<write_forward>(members.interfaces);
-            w.write_each<write_forward>(members.classes);
-            w.write_each<write_forward>(members.structs);
-            w.write_each<write_forward>(members.delegates);
-            w.write_each<write_forward>(members.contracts);
+            w.write_each<write_enum>(enums);
+            w.write_each<write_forward>(interfaces);
+            w.write_each<write_forward>(classes);
+            w.write_each<write_forward>(structs);
+            w.write_each<write_forward>(delegates);
+            w.write_each<write_forward>(contracts);
         }
         {
             auto wrap_impl = wrap_impl_namespace(w);
-            w.write_each<write_category>(members.interfaces, "interface_category");
-            w.write_each<write_category>(members.classes, "class_category");
-            w.write_each<write_category>(members.enums, "enum_category");
-            w.write_each<write_struct_category>(members.structs);
-            w.write_each<write_category>(members.delegates, "delegate_category");
+            w.write_each<write_category>(interfaces, "interface_category");
+            w.write_each<write_category>(classes, "class_category");
+            w.write_each<write_category>(enums, "enum_category");
+            w.write_each<write_struct_category>(structs);
+            w.write_each<write_category>(delegates, "delegate_category");
 
             // Class names are always required for activation.
             // Class, enum, and struct names are required for producing GUIDs for generic types.
             // Interface and delegates names are required for Xaml compatibility.
             // Contract names are used by IsApiContractPresent.
-            w.write_each<write_name>(members.classes);
-            w.write_each<write_name>(members.enums);
-            w.write_each<write_name>(members.structs);
-            w.write_each<write_name>(members.interfaces);
-            w.write_each<write_name>(members.delegates);
-            w.write_each<write_name>(members.contracts);
+            w.write_each<write_name>(classes);
+            w.write_each<write_name>(enums);
+            w.write_each<write_name>(structs);
+            w.write_each<write_name>(interfaces);
+            w.write_each<write_name>(delegates);
+            w.write_each<write_name>(contracts);
 
-            w.write_each<write_guid>(members.interfaces);
-            w.write_each<write_guid>(members.delegates);
-            w.write_each<write_default_interface>(members.classes);
-            w.write_each<write_interface_abi>(members.interfaces);
-            w.write_each<write_delegate_abi>(members.delegates);
-            w.write_each<write_consume>(members.interfaces);
-            w.write_each<write_struct_abi>(members.structs);
+            w.write_each<write_guid>(interfaces);
+            w.write_each<write_guid>(delegates);
+            w.write_each<write_default_interface>(classes);
+            w.write_each<write_interface_abi>(interfaces);
+            w.write_each<write_delegate_abi>(delegates);
+            w.write_each<write_consume>(interfaces);
+            w.write_each<write_struct_abi>(structs);
         }
 
         write_close_file_guard(w);
@@ -123,12 +130,14 @@ namespace cppwinrt
 
     static void write_namespace_1_h(std::string_view const& ns, cache::namespace_members const& members)
     {
+        auto interfaces = get_projected_types(members.interfaces);
+
         writer w;
         w.type_namespace = ns;
 
         {
             auto wrap_type = wrap_type_namespace(w, ns);
-            w.write_each<write_interface>(members.interfaces);
+            w.write_each<write_interface>(interfaces);
         }
         write_namespace_special_1(w, ns);
 
@@ -148,16 +157,20 @@ namespace cppwinrt
 
     static void write_namespace_2_h(std::string_view const& ns, cache::namespace_members const& members)
     {
+        auto delegates = get_projected_types(members.delegates);
+        auto structs = get_projected_types(members.structs);
+        auto classes = get_projected_types(members.classes);
+
         writer w;
         w.type_namespace = ns;
 
         bool promote;
         {
             auto wrap_type = wrap_type_namespace(w, ns);
-            w.write_each<write_delegate>(members.delegates);
-            promote = write_structs(w, members.structs);
-            w.write_each<write_class>(members.classes);
-            w.write_each<write_interface_override>(members.classes);
+            w.write_each<write_delegate>(delegates);
+            promote = write_structs(w, structs);
+            w.write_each<write_class>(classes);
+            w.write_each<write_interface_override>(classes);
         }
 
         write_close_file_guard(w);
@@ -178,38 +191,43 @@ namespace cppwinrt
 
     static void write_namespace_h(cache const& c, std::string_view const& ns, cache::namespace_members const& members)
     {
+        auto interfaces = get_projected_types(members.interfaces);
+        auto delegates = get_projected_types(members.delegates);
+        auto classes = get_projected_types(members.classes);
+        auto enums = get_projected_types(members.enums);
+
         writer w;
         w.type_namespace = ns;
 
         {
             auto wrap_impl = wrap_impl_namespace(w);
-            w.write_each<write_consume_definitions>(members.interfaces);
+            w.write_each<write_consume_definitions>(interfaces);
             w.param_names = true;
-            w.write_each<write_delegate_implementation>(members.delegates);
-            w.write_each<write_produce>(members.interfaces, c);
-            w.write_each<write_dispatch_overridable>(members.classes);
+            w.write_each<write_delegate_implementation>(delegates);
+            w.write_each<write_produce>(interfaces, c);
+            w.write_each<write_dispatch_overridable>(classes);
         }
         {
             auto wrap_type = wrap_type_namespace(w, ns);
-            w.write_each<write_enum_operators>(members.enums);
-            w.write_each<write_class_definitions>(members.classes);
-            w.write_each<write_fast_class_base_definitions>(members.classes);
-            w.write_each<write_delegate_definition>(members.delegates);
-            w.write_each<write_interface_override_methods>(members.classes);
-            w.write_each<write_class_override>(members.classes);
+            w.write_each<write_enum_operators>(enums);
+            w.write_each<write_class_definitions>(classes);
+            w.write_each<write_fast_class_base_definitions>(classes);
+            w.write_each<write_delegate_definition>(delegates);
+            w.write_each<write_interface_override_methods>(classes);
+            w.write_each<write_class_override>(classes);
         }
         {
             auto wrap_std = wrap_std_namespace(w);
 
             {
                 auto wrap_lean = wrap_lean_and_mean(w);
-                w.write_each<write_std_hash>(members.interfaces);
-                w.write_each<write_std_hash>(members.classes);
+                w.write_each<write_std_hash>(interfaces);
+                w.write_each<write_std_hash>(classes);
             }
             {
                 auto wrap_format = wrap_ifdef(w, "__cpp_lib_format");
-                w.write_each<write_std_formatter>(members.interfaces);
-                w.write_each<write_std_formatter>(members.classes);   
+                w.write_each<write_std_formatter>(interfaces);
+                w.write_each<write_std_formatter>(classes);   
             }
         }
 

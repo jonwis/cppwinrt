@@ -500,10 +500,32 @@ namespace cppwinrt
     {
         if (auto default_interface = get_default_interface(type))
         {
+            if (!is_base_visible_type(find_required_typedef(default_interface)))
+            {
+                return;
+            }
+
             auto format = R"(    template <> struct default_interface<%>{ using type = %; };
 )";
             w.write(format, type, default_interface);
         }
+    }
+
+    static void write_empty_class(writer& w, TypeDef const& type)
+    {
+        auto format = R"(    struct WINRT_IMPL_EMPTY_BASES % : winrt::Windows::Foundation::IInspectable
+    {
+        %(std::nullptr_t = nullptr) noexcept {}
+        %(void* ptr, take_ownership_from_abi_t) noexcept : winrt::Windows::Foundation::IInspectable(ptr, take_ownership_from_abi) {}
+    };
+)";
+
+        auto type_name = type.TypeName();
+
+        w.write(format,
+            type_name,
+            type_name,
+            type_name);
     }
 
     static void write_struct_category(writer& w, TypeDef const& type)
@@ -2985,6 +3007,11 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
 
         for (auto&& base : get_bases(type))
         {
+            if (!is_base_visible_type(base))
+            {
+                continue;
+            }
+
             if (first)
             {
                 first = false;
@@ -3004,6 +3031,11 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
     {
         for (auto&& base : get_bases(type))
         {
+            if (!is_base_visible_type(base))
+            {
+                continue;
+            }
+
             auto format = R"(        operator impl::producer_ref<%> const() const noexcept;
 )";
 
@@ -3030,6 +3062,11 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
 
         for (auto&& base : get_bases(type))
         {
+            if (!is_base_visible_type(base))
+            {
+                continue;
+            }
+
             auto format = R"(    inline %::operator impl::producer_ref<%> const() const noexcept
     {
         return { (*(impl::abi_t<%>**)this)->base_%() };
@@ -3379,6 +3416,12 @@ struct WINRT_IMPL_EMPTY_BASES produce_dispatch_to_overridable<T, D, %>
     {
         if (auto default_interface = get_default_interface(type))
         {
+            if (!is_base_visible_type(find_required_typedef(default_interface)))
+            {
+                write_empty_class(w, type);
+                return;
+            }
+
             if (has_fastabi(type))
             {
                 write_fast_class(w, type, default_interface);

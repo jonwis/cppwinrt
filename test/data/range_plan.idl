@@ -1,0 +1,64 @@
+import "Windows.Foundation.idl";
+
+namespace Test.RangePlan
+{
+    [contractversion(4)]
+    apicontract TestContract {}
+
+    [contract(TestContract, 1)]
+    interface IAlwaysVisible
+    {
+        Int32 Marker();
+    }
+
+    [contract(TestContract, 3)]
+    interface IMiddleVisible
+    {
+        void Grump();
+    }
+
+    [contract(TestContract, 4)]
+    interface INotProjected
+    {
+        void Oops();
+    }
+
+    [contract(TestContract, 1)]
+    interface IMyType
+    {
+        String AlwaysVisible();
+    }
+
+    [contract(TestContract, 4)]
+    interface IOutOfRangeBase
+    {
+        void Hidden();
+    }
+
+    [contract(TestContract, 1)]
+    runtimeclass MyType
+    {
+        [default] interface IMyType;
+        interface IAlwaysVisible;
+        [contract(TestContract, 3)] interface IMiddleVisible;
+        [contract(TestContract, 4)] interface INotProjected;
+    }
+
+    [contract(TestContract, 1)]
+    runtimeclass EmptySurface
+    {
+        [default] [contract(TestContract, 4)] interface IOutOfRangeBase;
+    }
+
+    [contract(TestContract, 4)]
+    interface IHiddenType
+    {
+        void HiddenMethod();
+    }
+
+    [contract(TestContract, 4)]
+    runtimeclass HiddenType
+    {
+        [default] interface IHiddenType;
+    }
+}

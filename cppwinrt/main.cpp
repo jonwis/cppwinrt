@@ -38,6 +38,8 @@ namespace cppwinrt
         { "brackets", 0, 0 }, // Use angle brackets for #includes (defaults to quotes)
         { "fastabi", 0, 0 }, // Enable support for the Fast ABI
         { "ignore_velocity", 0, 0 }, // Ignore feature staging metadata and always include implementations
+        { "min_platform", 0, 1, "<path>", "Path to platform.xml baseline contract map" },
+        { "max_platform", 0, 1, "<path>", "Path to platform.xml max contract map" },
         { "synchronous", 0, 0 }, // Instructs cppwinrt to run on a single thread to avoid file system issues in batch builds
     };
 
@@ -186,6 +188,20 @@ R"(  local               Local ^%WinDir^%\System32\WinMetadata folder
                 settings.component_folder = canonical(component).string();
                 settings.component_folder += std::filesystem::path::preferred_separator;
             }
+        }
+
+        auto min_platform = args.value("min_platform");
+        if (!min_platform.empty())
+        {
+            settings.min_platform_path = absolute(path{ min_platform });
+            settings.min_platform_contracts = load_platform_contracts(settings.min_platform_path);
+        }
+
+        auto max_platform = args.value("max_platform");
+        if (!max_platform.empty())
+        {
+            settings.max_platform_path = absolute(path{ max_platform });
+            settings.max_platform_contracts = load_platform_contracts(settings.max_platform_path);
         }
     }
 
@@ -337,6 +353,16 @@ R"(  local               Local ^%WinDir^%\System32\WinMetadata folder
                 {
                     w.write(" cout:  %\n", settings.component_folder);
                 }
+
+                if (!settings.min_platform_path.empty())
+                {
+                    w.write(" min:   %\n", settings.min_platform_path.string());
+                }
+
+                if (!settings.max_platform_path.empty())
+                {
+                    w.write(" max:   %\n", settings.max_platform_path.string());
+                }
             }
 
             w.flush_to_console();
@@ -380,6 +406,11 @@ R"(  local               Local ^%WinDir^%\System32\WinMetadata folder
                 {
                     for (auto&& type : members.classes)
                     {
+                        if (!is_projected_type(type))
+                        {
+                            continue;
+                        }
+
                         if (settings.component_filter.includes(type))
                         {
                             classes.push_back(type);

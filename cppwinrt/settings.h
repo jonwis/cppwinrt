@@ -26,6 +26,11 @@ namespace cppwinrt
         std::set<std::string> include;
         std::set<std::string> exclude;
 
+        std::filesystem::path min_platform_path;
+        std::filesystem::path max_platform_path;
+        std::map<std::string, std::uint32_t> min_platform_contracts;
+        std::map<std::string, std::uint32_t> max_platform_contracts;
+
         winmd::reader::filter projection_filter;
         winmd::reader::filter component_filter;
 

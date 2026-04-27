@@ -65,12 +65,25 @@ endif()
 
 if(STANDALONE_TESTING)
     add_custom_target(build-cppwinrt-projection)
+    add_custom_target(build-cppwinrt-range-projection)
+    add_custom_target(build-cppwinrt-range-plan-projection-full)
+    add_custom_target(build-cppwinrt-range-plan-projection-filtered)
     set(CPPWINRT_PROJECTION_INCLUDE_DIR "" CACHE PATH "Include path for the C++/WinRT projection headers")
+    set(CPPWINRT_RANGE_PROJECTION_INCLUDE_DIR "" CACHE PATH "Include path for the C++/WinRT range-filtered projection headers")
+    set(CPPWINRT_RANGE_PLAN_FULL_PROJECTION_INCLUDE_DIR "" CACHE PATH "Include path for full plan projection headers")
+    set(CPPWINRT_RANGE_PLAN_FILTERED_PROJECTION_INCLUDE_DIR "" CACHE PATH "Include path for filtered plan projection headers")
+    set(CPPWINRT_RANGE_PLAN_FILTERED_HEADER "" CACHE FILEPATH "Path to the filtered Test.RangePlan header")
     if(NOT CPPWINRT_PROJECTION_INCLUDE_DIR)
         message(FATAL_ERROR "CPPWINRT_PROJECTION_INCLUDE_DIR is not specified.")
     endif()
 else()
     set(CPPWINRT_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt")
+    set(CPPWINRT_RANGE_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt_range")
+    set(CPPWINRT_RANGE_PLAN_MIDL_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/range_plan")
+    set(CPPWINRT_RANGE_PLAN_WINMD "${CPPWINRT_RANGE_PLAN_MIDL_OUTPUT_DIR}/Test.RangePlan.winmd")
+    set(CPPWINRT_RANGE_PLAN_FULL_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt_range_plan_full")
+    set(CPPWINRT_RANGE_PLAN_FILTERED_PROJECTION_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt_range_plan_filtered")
+    set(CPPWINRT_RANGE_PLAN_FILTERED_HEADER "${CPPWINRT_RANGE_PLAN_FILTERED_PROJECTION_INCLUDE_DIR}/winrt/Test.RangePlan.h")
     add_custom_command(
         OUTPUT
             "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/winrt/base.h"
@@ -82,6 +95,66 @@ else()
     add_custom_target(build-cppwinrt-projection
         DEPENDS
             "${CMAKE_CURRENT_BINARY_DIR}/cppwinrt/winrt/base.h"
+    )
+
+    add_custom_command(
+        OUTPUT
+            "${CPPWINRT_RANGE_PROJECTION_INCLUDE_DIR}/winrt/base.h"
+        COMMAND cppwinrt -input local -output "${CPPWINRT_RANGE_PROJECTION_INCLUDE_DIR}" -max_platform "${CMAKE_CURRENT_SOURCE_DIR}/data/max_platform.xml" -verbose
+        DEPENDS
+            cppwinrt
+            "${CMAKE_CURRENT_SOURCE_DIR}/data/max_platform.xml"
+        VERBATIM
+    )
+    add_custom_target(build-cppwinrt-range-projection
+        DEPENDS
+            "${CPPWINRT_RANGE_PROJECTION_INCLUDE_DIR}/winrt/base.h"
+    )
+
+    add_custom_command(
+        OUTPUT
+            "${CPPWINRT_RANGE_PLAN_WINMD}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CPPWINRT_RANGE_PLAN_MIDL_OUTPUT_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy "C:/Program Files (x86)/Windows Kits/10/UnionMetadata/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.winmd" "${CPPWINRT_RANGE_PLAN_MIDL_OUTPUT_DIR}/Windows.winmd"
+        COMMAND pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/run_msbuild_vs.ps1"
+            "cd /d ${CMAKE_CURRENT_BINARY_DIR} && midlrt /winrt /nomidl /ns_prefix /h nul /env x64 /metadata_dir range_plan /out range_plan /winmd Test.RangePlan.winmd ../../test/data/range_plan.idl"
+            -NoLogo -PassThruExitCode
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/data/range_plan.idl"
+            "${CMAKE_SOURCE_DIR}/run_msbuild_vs.ps1"
+        VERBATIM
+    )
+
+    add_custom_command(
+        OUTPUT
+            "${CPPWINRT_RANGE_PLAN_FULL_PROJECTION_INCLUDE_DIR}/winrt/base.h"
+        COMMAND cppwinrt -input "${CPPWINRT_RANGE_PLAN_WINMD}" -output "${CPPWINRT_RANGE_PLAN_FULL_PROJECTION_INCLUDE_DIR}" -verbose
+        DEPENDS
+            cppwinrt
+            "${CPPWINRT_RANGE_PLAN_WINMD}"
+        VERBATIM
+    )
+
+    add_custom_command(
+        OUTPUT
+            "${CPPWINRT_RANGE_PLAN_FILTERED_PROJECTION_INCLUDE_DIR}/winrt/base.h"
+        COMMAND cppwinrt -input "${CPPWINRT_RANGE_PLAN_WINMD}" -output "${CPPWINRT_RANGE_PLAN_FILTERED_PROJECTION_INCLUDE_DIR}" -min_platform "${CMAKE_CURRENT_SOURCE_DIR}/data/range_plan_min_platform.xml" -max_platform "${CMAKE_CURRENT_SOURCE_DIR}/data/range_plan_max_platform.xml" -verbose
+        DEPENDS
+            cppwinrt
+            "${CPPWINRT_RANGE_PLAN_WINMD}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/data/range_plan_min_platform.xml"
+            "${CMAKE_CURRENT_SOURCE_DIR}/data/range_plan_max_platform.xml"
+        VERBATIM
+    )
+
+    add_custom_target(build-cppwinrt-range-plan-projection-full
+        DEPENDS
+            "${CPPWINRT_RANGE_PLAN_FULL_PROJECTION_INCLUDE_DIR}/winrt/base.h"
+    )
+
+    add_custom_target(build-cppwinrt-range-plan-projection-filtered
+        DEPENDS
+            "${CPPWINRT_RANGE_PLAN_FILTERED_PROJECTION_INCLUDE_DIR}/winrt/base.h"
     )
 endif()
 include_directories("${CPPWINRT_PROJECTION_INCLUDE_DIR}")

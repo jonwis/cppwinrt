@@ -314,6 +314,17 @@ namespace cppwinrt
         return find_required(extends);
     };
 
+    static TypeDef find_required_typedef(coded_index<TypeDefOrRef> const& type)
+    {
+        if (type.type() == TypeDefOrRef::TypeSpec)
+        {
+            auto signature = type.TypeSpec().Signature();
+            return find_required(signature.GenericTypeInst().GenericType());
+        }
+
+        return find_required(type);
+    }
+
 
     static auto get_bases(TypeDef const& type)
     {
@@ -349,6 +360,85 @@ namespace cppwinrt
         std::vector<previous_contract> previous_contracts;
     };
 
+    static contract_version get_initial_contract_version(TypeDef const& type);
+
+    enum class projection_range
+    {
+        base_visible,
+        cast_only,
+        out_of_range
+    };
+
+    static projection_range get_projection_range(contract_version const& introduced)
+    {
+        if (introduced.name.empty())
+        {
+            return projection_range::base_visible;
+        }
+
+        std::string contract_name{ introduced.name };
+
+        if (!settings.max_platform_contracts.empty())
+        {
+            auto max_match = settings.max_platform_contracts.find(contract_name);
+
+            if (max_match == settings.max_platform_contracts.end() || introduced.version > max_match->second)
+            {
+                return projection_range::out_of_range;
+            }
+        }
+
+        if (settings.min_platform_contracts.empty())
+        {
+            return projection_range::base_visible;
+        }
+
+        auto min_match = settings.min_platform_contracts.find(contract_name);
+
+        if (min_match == settings.min_platform_contracts.end())
+        {
+            return projection_range::cast_only;
+        }
+
+        if (introduced.version > min_match->second)
+        {
+            return projection_range::cast_only;
+        }
+
+        return projection_range::base_visible;
+    }
+
+    static projection_range get_projection_range(TypeDef const& type)
+    {
+        return get_projection_range(get_initial_contract_version(type));
+    }
+
+    static bool is_projected_type(TypeDef const& type)
+    {
+        return get_projection_range(type) != projection_range::out_of_range;
+    }
+
+    static bool is_base_visible_type(TypeDef const& type)
+    {
+        return get_projection_range(type) == projection_range::base_visible;
+    }
+
+    static std::vector<TypeDef> get_projected_types(std::vector<TypeDef> const& types)
+    {
+        std::vector<TypeDef> result;
+        result.reserve(types.size());
+
+        for (auto&& type : types)
+        {
+            if (is_projected_type(type))
+            {
+                result.push_back(type);
+            }
+        }
+
+        return result;
+    }
+
     static contract_version decode_contract_version_attribute(CustomAttribute const& attribute)
     {
         // ContractVersionAttribute has three constructors, but only two we care about here:
@@ -356,9 +446,20 @@ namespace cppwinrt
         //      .ctor(System.Type contract, uint32 version)
         auto signature = attribute.Value();
         auto& args = signature.FixedArgs();
-        assert(args.size() == 2);
 
         contract_version result{};
+        if (args.size() == 1)
+        {
+            // Some metadata uses .ctor(uint32 version) without a contract identifier.
+            result.version = get_integer_attribute<std::uint32_t>(args[0]);
+            return result;
+        }
+
+        if (args.size() < 2)
+        {
+            return result;
+        }
+
         result.version = get_integer_attribute<std::uint32_t>(args[1]);
         call(std::get<ElemSig>(args[0].value).value,
             [&](ElemSig::SystemType t)
@@ -369,9 +470,9 @@ namespace cppwinrt
             {
                 result.name = name;
             },
-            [](auto&&)
+            [&](auto&&)
             {
-                assert(false);
+                // Keep empty contract name for unknown forms.
             });
 
         return result;
@@ -654,8 +755,29 @@ namespace cppwinrt
             get_interfaces_impl(w, result, false, false, true, {}, base.InterfaceImpl());
         }
 
+        bool const class_projection = get_category(type) == category::class_type;
+
+        auto apply_projection_filter = [&]()
+        {
+            result.erase(std::remove_if(result.begin(), result.end(), [&](auto const& pair)
+            {
+                if (!is_projected_type(pair.second.type))
+                {
+                    return true;
+                }
+
+                if (class_projection && !is_base_visible_type(pair.second.type))
+                {
+                    return true;
+                }
+
+                return false;
+            }), result.end());
+        };
+
         if (!has_fastabi(type))
         {
+            apply_projection_filter();
             return result;
         }
 
@@ -732,6 +854,8 @@ namespace cppwinrt
         {
             pair.second.fastabi = true;
         });
+
+        apply_projection_filter();
 
         return result;
     }
@@ -1107,11 +1231,11 @@ namespace cppwinrt
     static bool has_projected_types(cache::namespace_members const& members)
     {
         return
-            !members.interfaces.empty() ||
-            !members.classes.empty() ||
-            !members.enums.empty() ||
-            !members.structs.empty() ||
-            !members.delegates.empty();
+            std::any_of(members.interfaces.begin(), members.interfaces.end(), is_projected_type) ||
+            std::any_of(members.classes.begin(), members.classes.end(), is_projected_type) ||
+            std::any_of(members.enums.begin(), members.enums.end(), is_projected_type) ||
+            std::any_of(members.structs.begin(), members.structs.end(), is_projected_type) ||
+            std::any_of(members.delegates.begin(), members.delegates.end(), is_projected_type);
     }
 
     static bool can_produce(TypeDef const& type, cache const& c)

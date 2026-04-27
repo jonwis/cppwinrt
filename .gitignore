@@ -16,3 +16,6 @@ Release
 Generated Files
 obj
 vsix/LICENSE
+build-dir
+CMakeFiles
+

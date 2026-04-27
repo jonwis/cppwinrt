@@ -8,6 +8,11 @@ namespace cppwinrt
 
         for (auto&& base : get_bases(type))
         {
+            if (!is_base_visible_type(base))
+            {
+                continue;
+            }
+
             if (settings.component_filter.includes(base))
             {
                 continue;
@@ -49,6 +54,11 @@ namespace cppwinrt
 
         for (auto&& base : get_bases(type))
         {
+            if (!is_base_visible_type(base))
+            {
+                continue;
+            }
+
             if (settings.component_filter.includes(base))
             {
                 return;
@@ -235,6 +245,11 @@ catch (...) { return winrt::to_hresult(); }
         auto base_type = get_base_class(type);
 
         if (!base_type)
+        {
+            return;
+        }
+
+        if (!is_base_visible_type(base_type))
         {
             return;
         }
@@ -591,6 +606,11 @@ catch (...) { return winrt::to_hresult(); }
             return;
         }
 
+        if (!is_base_visible_type(base_type))
+        {
+            return;
+        }
+
         if (settings.component_filter.includes(base_type))
         {
             return;
@@ -640,7 +660,14 @@ catch (...) { return winrt::to_hresult(); }
             }
 )";
 
-        std::size_t offset = get_bases(type).size();
+        std::size_t offset{};
+        for (auto&& base : get_bases(type))
+        {
+            if (is_base_visible_type(base))
+            {
+                ++offset;
+            }
+        }
         auto interfaces = get_interfaces(w, type);
 
         for (auto&& [name, info] : interfaces)
@@ -725,6 +752,11 @@ catch (...) { return winrt::to_hresult(); }
             return;
         }
 
+        if (!is_base_visible_type(base_type))
+        {
+            return;
+        }
+
         auto format = R"(
         auto base_%() const noexcept
         {
@@ -770,6 +802,14 @@ catch (...) { return winrt::to_hresult(); }
             std::string external_requires;
             std::string external_protected_requires;
             std::string friends;
+
+            if (base_type)
+            {
+                if (!is_base_visible_type(base_type))
+                {
+                    base_type = {};
+                }
+            }
 
             if (base_type)
             {

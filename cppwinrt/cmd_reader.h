@@ -83,6 +83,118 @@ namespace cppwinrt
         optional
     };
 
+    inline std::map<std::string, std::uint32_t> load_platform_contracts(std::filesystem::path const& xml_path)
+    {
+        auto parse_contract_version = [](std::string_view value) -> std::uint32_t
+        {
+            std::uint32_t major{};
+            std::uint32_t minor{};
+
+            auto dot = value.find('.');
+
+            if (dot == std::string_view::npos)
+            {
+                major = static_cast<std::uint32_t>(std::stoul(std::string{ value }));
+            }
+            else
+            {
+                major = static_cast<std::uint32_t>(std::stoul(std::string{ value.substr(0, dot) }));
+
+                auto next = value.find('.', dot + 1);
+                auto minor_token = value.substr(dot + 1, next == std::string_view::npos ? std::string_view::npos : (next - (dot + 1)));
+
+                if (!minor_token.empty())
+                {
+                    minor = static_cast<std::uint32_t>(std::stoul(std::string{ minor_token }));
+                }
+            }
+
+            return (major << 16) | (minor & 0xFFFFu);
+        };
+
+        std::map<std::string, std::uint32_t> contracts;
+
+#if defined(_WIN32) || defined(_WIN64)
+        com_ptr<IStream> stream;
+        auto stream_result = SHCreateStreamOnFileW(xml_path.c_str(), STGM_READ, &stream.ptr);
+        if (stream_result < 0)
+        {
+            throw std::invalid_argument("Could not read platform contract file '" + xml_path.string() + "'");
+        }
+
+        com_ptr<IXmlReader> reader;
+        check_xml(CreateXmlReader(
+            __uuidof(IXmlReader),
+            reinterpret_cast<void**>(&reader.ptr),
+            nullptr));
+        check_xml(reader->SetInput(stream.ptr));
+
+        XmlNodeType node_type = XmlNodeType_None;
+
+        while (S_OK == reader->Read(&node_type))
+        {
+            if (node_type != XmlNodeType_Element)
+            {
+                continue;
+            }
+
+            wchar_t const* value{ nullptr };
+            check_xml(reader->GetLocalName(&value, nullptr));
+
+            if ((0 != wcscmp(value, L"ApiContract")) && (0 != wcscmp(value, L"Contract")))
+            {
+                continue;
+            }
+
+            auto hr = reader->MoveToAttributeByName(L"name", nullptr);
+            if (hr < 0)
+            {
+                check_xml(reader->MoveToAttributeByName(L"Name", nullptr));
+            }
+            check_xml(reader->GetValue(&value, nullptr));
+            std::wstring_view contract_name_w{ value };
+            std::string contract_name;
+            contract_name.reserve(contract_name_w.size());
+            for (auto ch : contract_name_w)
+            {
+                contract_name.push_back(static_cast<char>(ch));
+            }
+
+            hr = reader->MoveToAttributeByName(L"version", nullptr);
+            if (hr < 0)
+            {
+                check_xml(reader->MoveToAttributeByName(L"Version", nullptr));
+            }
+            check_xml(reader->GetValue(&value, nullptr));
+            std::wstring_view contract_version_w{ value };
+            std::string contract_version;
+            contract_version.reserve(contract_version_w.size());
+            for (auto ch : contract_version_w)
+            {
+                contract_version.push_back(static_cast<char>(ch));
+            }
+
+            contracts.insert_or_assign(contract_name, parse_contract_version(contract_version));
+        }
+#else
+        std::ifstream file(xml_path);
+        if (!file)
+        {
+            throw std::invalid_argument("Could not read platform contract file '" + xml_path.string() + "'");
+        }
+
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        std::regex contract_regex(R"(<(ApiContract|Contract)\s+[^>]*(name|Name)\s*=\s*"([^"]+)"[^>]*(version|Version)\s*=\s*"([^"]+)"[^>]*/?>)");
+
+        for (std::sregex_iterator match{ content.begin(), content.end(), contract_regex }, end; match != end; ++match)
+        {
+            contracts.insert_or_assign((*match)[3].str(), parse_contract_version((*match)[5].str()));
+        }
+#endif
+
+        return contracts;
+    }
+
     inline void add_files_from_xml(
         std::set<std::string>& files,
         std::string const& sdk_version,
