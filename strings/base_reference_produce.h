@@ -15,12 +15,27 @@ WINRT_EXPORT namespace winrt::impl
 
         Windows::Foundation::PropertyType Type() const noexcept
         {
-            return Windows::Foundation::PropertyType::OtherType;
+            using pt = Windows::Foundation::PropertyType;
+
+            if constexpr (std::is_same_v<T, std::uint8_t>) { return pt::UInt8; }
+            else if constexpr (std::is_same_v<T, std::int16_t>) { return pt::Int16; }
+            else if constexpr (std::is_same_v<T, std::uint16_t>) { return pt::UInt16; }
+            else if constexpr (std::is_same_v<T, std::int32_t>) { return pt::Int32; }
+            else if constexpr (std::is_same_v<T, std::uint32_t>) { return pt::UInt32; }
+            else if constexpr (std::is_same_v<T, std::int64_t>) { return pt::Int64; }
+            else if constexpr (std::is_same_v<T, std::uint64_t>) { return pt::UInt64; }
+            else if constexpr (std::is_same_v<T, float>) { return pt::Single; }
+            else if constexpr (std::is_same_v<T, double>) { return pt::Double; }
+            else if constexpr (std::is_same_v<T, char16_t>) { return pt::Char16; }
+            else if constexpr (std::is_same_v<T, bool>) { return pt::Boolean; }
+            else if constexpr (std::is_same_v<T, hstring>) { return pt::String; }
+            else if constexpr (std::is_same_v<T, guid>) { return pt::Guid; }
+            else { return pt::OtherType; }
         }
 
         static constexpr bool IsNumericScalar() noexcept
         {
-            return std::is_arithmetic_v<T> || std::is_enum_v<T>;
+            return (std::is_arithmetic_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, char16_t>) || std::is_enum_v<T>;
         }
 
         std::uint8_t GetUInt8() const
@@ -58,12 +73,12 @@ WINRT_EXPORT namespace winrt::impl
             return to_scalar<std::uint64_t>();
         }
 
-        float GetSingle() { throw hresult_not_implemented(); }
-        double GetDouble() { throw hresult_not_implemented(); }
-        char16_t GetChar16() { throw hresult_not_implemented(); }
-        bool GetBoolean() { throw hresult_not_implemented(); }
-        hstring GetString() { throw hresult_not_implemented(); }
-        guid GetGuid() { throw hresult_not_implemented(); }
+        float GetSingle() { return to_scalar<float>(); }
+        double GetDouble() { return to_scalar<double>(); }
+        char16_t GetChar16() { if constexpr (std::is_same_v<T, char16_t>) { return m_value; } else { throw hresult_not_implemented(); } }
+        bool GetBoolean() { if constexpr (std::is_same_v<T, bool>) { return m_value; } else { throw hresult_not_implemented(); } }
+        hstring GetString() { if constexpr (std::is_same_v<T, hstring>) { return m_value; } else { throw hresult_not_implemented(); } }
+        guid GetGuid() { if constexpr (std::is_same_v<T, guid>) { return m_value; } else { throw hresult_not_implemented(); } }
         Windows::Foundation::DateTime GetDateTime() { throw hresult_not_implemented(); }
         Windows::Foundation::TimeSpan GetTimeSpan() { throw hresult_not_implemented(); }
         Windows::Foundation::Point GetPoint() { throw hresult_not_implemented(); }
@@ -115,90 +130,6 @@ WINRT_EXPORT namespace winrt::impl
     };
 
     template <>
-    struct reference_traits<std::uint8_t>
-    {
-        static auto make(std::uint8_t value) { return Windows::Foundation::PropertyValue::CreateUInt8(value); }
-        using itf = Windows::Foundation::IReference<std::uint8_t>;
-    };
-
-    template <>
-    struct reference_traits<std::uint16_t>
-    {
-        static auto make(std::uint16_t value) { return Windows::Foundation::PropertyValue::CreateUInt16(value); }
-        using itf = Windows::Foundation::IReference<std::uint16_t>;
-    };
-
-    template <>
-    struct reference_traits<std::int16_t>
-    {
-        static auto make(std::int16_t value) { return Windows::Foundation::PropertyValue::CreateInt16(value); }
-        using itf = Windows::Foundation::IReference<std::int16_t>;
-    };
-
-    template <>
-    struct reference_traits<std::uint32_t>
-    {
-        static auto make(std::uint32_t value) { return Windows::Foundation::PropertyValue::CreateUInt32(value); }
-        using itf = Windows::Foundation::IReference<std::uint32_t>;
-    };
-
-    template <>
-    struct reference_traits<std::int32_t>
-    {
-        static auto make(std::int32_t value) { return Windows::Foundation::PropertyValue::CreateInt32(value); }
-        using itf = Windows::Foundation::IReference<std::int32_t>;
-    };
-
-    template <>
-    struct reference_traits<std::uint64_t>
-    {
-        static auto make(std::uint64_t value) { return Windows::Foundation::PropertyValue::CreateUInt64(value); }
-        using itf = Windows::Foundation::IReference<std::uint64_t>;
-    };
-
-    template <>
-    struct reference_traits<std::int64_t>
-    {
-        static auto make(std::int64_t value) { return Windows::Foundation::PropertyValue::CreateInt64(value); }
-        using itf = Windows::Foundation::IReference<std::int64_t>;
-    };
-
-    template <>
-    struct reference_traits<float>
-    {
-        static auto make(float value) { return Windows::Foundation::PropertyValue::CreateSingle(value); }
-        using itf = Windows::Foundation::IReference<float>;
-    };
-
-    template <>
-    struct reference_traits<double>
-    {
-        static auto make(double value) { return Windows::Foundation::PropertyValue::CreateDouble(value); }
-        using itf = Windows::Foundation::IReference<double>;
-    };
-
-    template <>
-    struct reference_traits<char16_t>
-    {
-        static auto make(char16_t value) { return Windows::Foundation::PropertyValue::CreateChar16(value); }
-        using itf = Windows::Foundation::IReference<char16_t>;
-    };
-
-    template <>
-    struct reference_traits<bool>
-    {
-        static auto make(bool value) { return Windows::Foundation::PropertyValue::CreateBoolean(value); }
-        using itf = Windows::Foundation::IReference<bool>;
-    };
-
-    template <>
-    struct reference_traits<hstring>
-    {
-        static auto make(hstring const& value) { return Windows::Foundation::PropertyValue::CreateString(value); }
-        using itf = Windows::Foundation::IReference<hstring>;
-    };
-
-    template <>
     struct reference_traits<Windows::Foundation::IInspectable>
     {
         static auto make(Windows::Foundation::IInspectable const& value) { return Windows::Foundation::PropertyValue::CreateInspectable(value); }
@@ -206,16 +137,9 @@ WINRT_EXPORT namespace winrt::impl
     };
 
     template <>
-    struct reference_traits<guid>
-    {
-        static auto make(guid const& value) { return Windows::Foundation::PropertyValue::CreateGuid(value); }
-        using itf = Windows::Foundation::IReference<guid>;
-    };
-
-    template <>
     struct reference_traits<GUID>
     {
-        static auto make(GUID const& value) { return Windows::Foundation::PropertyValue::CreateGuid(reinterpret_cast<guid const&>(value)); }
+        static auto make(GUID const& value) { return reference_traits<guid>::make(reinterpret_cast<guid const&>(value)); }
         using itf = Windows::Foundation::IReference<guid>;
     };
 
