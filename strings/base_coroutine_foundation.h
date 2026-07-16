@@ -837,6 +837,86 @@ WINRT_IMPL_STD_EXPORT namespace std
     };
 }
 
+WINRT_EXPORT namespace winrt::impl
+{
+    template <typename Derived, typename AsyncInterface>
+    struct ready_async_base : implements<Derived, AsyncInterface, Windows::Foundation::IAsyncInfo>
+    {
+        using AsyncStatus = Windows::Foundation::AsyncStatus;
+
+        void Completed(async_completed_handler_t<AsyncInterface> const& handler)
+        {
+            if (m_completed_assigned.exchange(true))
+            {
+                throw hresult_illegal_delegate_assignment();
+            }
+
+            if (handler)
+            {
+                winrt::impl::invoke(handler, *static_cast<Derived*>(this), AsyncStatus::Completed);
+            }
+        }
+
+        auto Completed() noexcept
+        {
+            return async_completed_handler_t<AsyncInterface>{ nullptr };
+        }
+
+        std::uint32_t Id() const noexcept
+        {
+            return 1;
+        }
+
+        AsyncStatus Status() const noexcept
+        {
+            return AsyncStatus::Completed;
+        }
+
+        hresult ErrorCode() const noexcept
+        {
+            return 0;
+        }
+
+        void Cancel() const noexcept
+        {
+        }
+
+        void Close() const noexcept
+        {
+        }
+
+    private:
+
+        std::atomic<bool> m_completed_assigned{ false };
+    };
+
+    template <typename TResult>
+    struct ready_async_operation :
+        ready_async_base<ready_async_operation<TResult>, Windows::Foundation::IAsyncOperation<TResult>>
+    {
+        explicit ready_async_operation(TResult value) : m_result(std::move(value))
+        {
+        }
+
+        TResult GetResults()
+        {
+            return m_result;
+        }
+
+    private:
+
+        TResult m_result;
+    };
+
+    struct ready_async_action :
+        ready_async_base<ready_async_action, Windows::Foundation::IAsyncAction>
+    {
+        void GetResults() const noexcept
+        {
+        }
+    };
+}
+
 WINRT_EXPORT namespace winrt
 {
     template <typename... T>
@@ -883,6 +963,17 @@ WINRT_EXPORT namespace winrt
         co_await resume_on_signal(shared->event.get());
         impl::check_status_canceled(shared->status);
         co_return shared->result.GetResults();
+    }
+
+    template <typename TResult>
+    Windows::Foundation::IAsyncOperation<TResult> make_ready(TResult value)
+    {
+        return make<impl::ready_async_operation<TResult>>(std::move(value));
+    }
+
+    inline Windows::Foundation::IAsyncAction make_ready() noexcept
+    {
+        return make<impl::ready_async_action>();
     }
 }
 #endif
