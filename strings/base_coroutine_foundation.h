@@ -966,9 +966,9 @@ WINRT_EXPORT namespace winrt
     }
 
     template <typename TResult>
-    Windows::Foundation::IAsyncOperation<TResult> make_ready(TResult value)
+    Windows::Foundation::IAsyncOperation<std::decay_t<TResult>> make_ready(TResult&& value)
     {
-        return make<impl::ready_async_operation<TResult>>(std::move(value));
+        return make<impl::ready_async_operation<std::decay_t<TResult>>>(std::forward<TResult>(value));
     }
 
     inline Windows::Foundation::IAsyncAction make_ready() noexcept
