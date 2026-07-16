@@ -19,6 +19,15 @@ namespace
 
 TEST_CASE("hstring_literal")
 {
+    // The literal is a genuine constant expression: the fast-pass header is built at
+    // compile time, so an hstring_reference can be constructed in a constexpr context.
+    {
+        constexpr winrt::hstring_reference lit = L"kittens"_hs;
+        winrt::hstring const& value = lit;
+        REQUIRE(value == L"kittens"sv);
+        REQUIRE(value.size() == 7);
+    }
+
     // Content and length match the literal.
     {
         winrt::hstring_reference const lit = L"kittens"_hs;

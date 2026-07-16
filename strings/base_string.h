@@ -406,9 +406,9 @@ WINRT_EXPORT namespace winrt
 
     struct hstring_reference
     {
-        hstring_reference() noexcept = default;
+        constexpr hstring_reference() noexcept = default;
 
-        explicit hstring_reference(impl::hstring_header const* header) noexcept :
+        constexpr explicit hstring_reference(impl::hstring_header const* header) noexcept :
             m_handle(const_cast<impl::hstring_header*>(header))
         {
         }
@@ -481,12 +481,27 @@ WINRT_EXPORT namespace winrt
 
 #if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911L
 
+WINRT_EXPORT namespace winrt::impl
+{
+    // The fast-pass header for each distinct literal, materialized once as a compile-time
+    // constant so `_hs` is a constant expression rather than per-call work.
+    template <hstring_literal_storage Literal>
+    inline constexpr hstring_header hstring_literal_header
+    {
+        hstring_reference_flag,
+        static_cast<std::uint32_t>(Literal.size - 1),
+        0,
+        0,
+        Literal.value
+    };
+}
+
 WINRT_EXPORT namespace winrt
 {
     inline namespace literals
     {
         template <impl::hstring_literal_storage Literal>
-        hstring_reference operator ""_hs() noexcept
+        constexpr hstring_reference operator ""_hs() noexcept
         {
             if constexpr (Literal.size <= 1)
             {
@@ -494,16 +509,7 @@ WINRT_EXPORT namespace winrt
             }
             else
             {
-                static constexpr impl::hstring_header header
-                {
-                    impl::hstring_reference_flag,
-                    static_cast<std::uint32_t>(Literal.size - 1),
-                    0,
-                    0,
-                    Literal.value
-                };
-
-                return hstring_reference{ &header };
+                return hstring_reference{ &impl::hstring_literal_header<Literal> };
             }
         }
     }
