@@ -141,23 +141,89 @@ WINRT_EXPORT namespace winrt::impl
         static constexpr bool value = get_value<T>(0);
     };
 
-    template <typename T, std::enable_if_t<!has_GetAt<T>::value, int> = 0>
-    auto get_begin_iterator(T const& collection) -> decltype(collection.First())
+    // Forward iterator that batches an IIterator via GetMany into a small buffer and yields from
+    // it, so range-for over a collection that lacks GetAt crosses the ABI once per block instead of
+    // once per element (Current/MoveNext). Single-pass, matching IIterator's semantics.
+    template <typename Iterator>
+    struct buffered_iterator
     {
-        auto result = collection.First();
+        using value_type = decltype(std::declval<Iterator>().Current());
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type const*;
+        using reference = value_type const&;
 
-        if (!result.HasCurrent())
+        static constexpr std::uint32_t buffer_capacity = static_cast<std::uint32_t>(
+            (std::min<std::size_t>)(128, (std::max<std::size_t>)(1, std::size_t{ 2048 } / sizeof(value_type))));
+
+        buffered_iterator() noexcept = default;
+
+        explicit buffered_iterator(Iterator iterator) : m_iterator(std::move(iterator))
         {
-            return {};
+            fill();
         }
 
-        return result;
+        reference operator*() const noexcept
+        {
+            return m_buffer[m_index];
+        }
+
+        pointer operator->() const noexcept
+        {
+            return std::addressof(m_buffer[m_index]);
+        }
+
+        buffered_iterator& operator++()
+        {
+            if (++m_index == m_size)
+            {
+                fill();
+            }
+
+            return *this;
+        }
+
+        buffered_iterator operator++(int)
+        {
+            auto previous = *this;
+            ++*this;
+            return previous;
+        }
+
+        bool operator==(buffered_iterator const& other) const noexcept
+        {
+            return (m_size == 0) && (other.m_size == 0);
+        }
+
+        bool operator!=(buffered_iterator const& other) const noexcept
+        {
+            return !(*this == other);
+        }
+
+    private:
+
+        void fill()
+        {
+            m_index = 0;
+            m_size = m_iterator ? m_iterator.GetMany(m_buffer) : 0;
+        }
+
+        Iterator m_iterator{ nullptr };
+        std::array<value_type, buffer_capacity> m_buffer;
+        std::uint32_t m_size{ 0 };
+        std::uint32_t m_index{ 0 };
+    };
+
+    template <typename T, std::enable_if_t<!has_GetAt<T>::value, int> = 0>
+    auto get_begin_iterator(T const& collection)
+    {
+        return buffered_iterator<decltype(collection.First())>{ collection.First() };
     }
 
     template <typename T, std::enable_if_t<!has_GetAt<T>::value, int> = 0>
-    auto get_end_iterator([[maybe_unused]] T const& collection) noexcept -> decltype(collection.First())
+    auto get_end_iterator([[maybe_unused]] T const& collection) noexcept
     {
-        return {};
+        return buffered_iterator<decltype(std::declval<T const&>().First())>{};
     }
 
     template <typename T, std::enable_if_t<has_GetAt<T>::value, int> = 0>
