@@ -1,4 +1,6 @@
 #include "pch.h"
+#include <objbase.h>
+#include <objidl.h>
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -58,4 +60,31 @@ TEST_CASE("reference_boxing")
         REQUIRE(pv.GetUInt8() == 7);
         REQUIRE(unbox_value<uint8_t>(box_value(static_cast<uint8_t>(7))) == 7);
     }
+}
+
+// The in-proc reference stays agile but must marshal by value across processes, exactly like a real
+// combase PropertyValue. Prove it by confirming our IMarshal reports the SAME unmarshal class as a
+// genuine PropertyValue - i.e. we forward marshaling to combase - and specifically NOT the
+// free-threaded (marshal-by-reference) class the default agile path would have used.
+TEST_CASE("reference_boxing marshal by value")
+{
+    auto boxed = box_value(42);
+    REQUIRE(boxed.try_as<IAgileObject>());
+    auto ours = boxed.as<impl::IMarshal>();
+
+    auto genuine = PropertyValue::CreateInt32(42);
+    auto reference = genuine.as<impl::IMarshal>();
+
+    guid our_clsid{};
+    guid reference_clsid{};
+    check_hresult(ours->GetUnmarshalClass(guid_of<IPropertyValue>(), get_unknown(boxed),
+        MSHCTX_DIFFERENTMACHINE, nullptr, MSHLFLAGS_NORMAL, &our_clsid));
+    check_hresult(reference->GetUnmarshalClass(guid_of<IPropertyValue>(), get_unknown(genuine),
+        MSHCTX_DIFFERENTMACHINE, nullptr, MSHLFLAGS_NORMAL, &reference_clsid));
+
+    REQUIRE(our_clsid == reference_clsid);
+
+    // CLSID_InProcFreeMarshaler - the by-reference class the agile FTM would have produced.
+    guid const free_threaded_marshaler{ 0x0000033A, 0x0000, 0x0000, { 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46 } };
+    REQUIRE(our_clsid != free_threaded_marshaler);
 }

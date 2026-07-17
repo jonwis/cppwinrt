@@ -2,7 +2,32 @@
 WINRT_EXPORT namespace winrt::impl
 {
     template <typename T>
-    struct reference : implements<reference<T>, Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue>
+    struct reference;
+
+    // The scalar types that combase PropertyValue can carry by value. box_value on one of these
+    // produces an in-process reference<T> for the fast path, but must still marshal by value across
+    // apartments/processes so the destination sees a real PropertyValue copy rather than a proxy.
+    template <typename T>
+    inline constexpr bool is_stock_reference_v =
+        std::is_same_v<T, std::uint8_t> || std::is_same_v<T, std::int16_t> ||
+        std::is_same_v<T, std::uint16_t> || std::is_same_v<T, std::int32_t> ||
+        std::is_same_v<T, std::uint32_t> || std::is_same_v<T, std::int64_t> ||
+        std::is_same_v<T, std::uint64_t> || std::is_same_v<T, float> ||
+        std::is_same_v<T, double> || std::is_same_v<T, char16_t> ||
+        std::is_same_v<T, bool> || std::is_same_v<T, hstring> ||
+        std::is_same_v<T, guid>;
+
+    // Stock scalar references are marked non_agile so that our query_interface_tearoff supplies
+    // IMarshal (delegating to combase PropertyValue for by-value marshaling) instead of the default
+    // free-threaded-marshaler that marshals by reference. All other T keep the default agile shape.
+    template <typename T>
+    using reference_base_t = std::conditional_t<
+        is_stock_reference_v<T>,
+        implements<reference<T>, Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue, non_agile>,
+        implements<reference<T>, Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue>>;
+
+    template <typename T>
+    struct reference : reference_base_t<T>
     {
         reference(T const& value) : m_value(value)
         {
@@ -105,6 +130,64 @@ WINRT_EXPORT namespace winrt::impl
         void GetRectArray(com_array<Windows::Foundation::Rect> &) { throw hresult_not_implemented(); }
 
     private:
+
+        // For stock scalar T, hand out an IMarshal that marshals by value: build the equivalent
+        // combase PropertyValue on demand and delegate marshaling to it. This is lazy - box_value and
+        // unbox_value never touch combase; the hop only happens if the reference is actually marshaled.
+        std::int32_t query_interface_tearoff(guid const& id, void** object) const noexcept override
+        {
+            if constexpr (is_stock_reference_v<T>)
+            {
+                if (is_guid_of<IMarshal>(id))
+                {
+                    try
+                    {
+                        auto marshal = create_property_value().as<IMarshal>();
+                        *object = detach_abi(marshal);
+                        return error_ok;
+                    }
+                    catch (...)
+                    {
+                        *object = nullptr;
+                        return to_hresult();
+                    }
+                }
+
+                // reference<T> is immutable, so it is safe to call from any apartment. Advertise
+                // IAgileObject (as combase PropertyValue does) so callers keep the agile fast path;
+                // cross-apartment/process marshaling still routes through the by-value IMarshal above.
+                if (is_guid_of<IAgileObject>(id))
+                {
+                    auto unknown = reinterpret_cast<unknown_abi*>(to_abi<Windows::Foundation::IReference<T>>(this));
+                    unknown->AddRef();
+                    *object = unknown;
+                    return error_ok;
+                }
+            }
+
+            *object = nullptr;
+            return error_no_interface;
+        }
+
+        Windows::Foundation::IInspectable create_property_value() const
+        {
+            using pv = Windows::Foundation::PropertyValue;
+
+            if constexpr (std::is_same_v<T, std::uint8_t>) { return pv::CreateUInt8(m_value); }
+            else if constexpr (std::is_same_v<T, std::int16_t>) { return pv::CreateInt16(m_value); }
+            else if constexpr (std::is_same_v<T, std::uint16_t>) { return pv::CreateUInt16(m_value); }
+            else if constexpr (std::is_same_v<T, std::int32_t>) { return pv::CreateInt32(m_value); }
+            else if constexpr (std::is_same_v<T, std::uint32_t>) { return pv::CreateUInt32(m_value); }
+            else if constexpr (std::is_same_v<T, std::int64_t>) { return pv::CreateInt64(m_value); }
+            else if constexpr (std::is_same_v<T, std::uint64_t>) { return pv::CreateUInt64(m_value); }
+            else if constexpr (std::is_same_v<T, float>) { return pv::CreateSingle(m_value); }
+            else if constexpr (std::is_same_v<T, double>) { return pv::CreateDouble(m_value); }
+            else if constexpr (std::is_same_v<T, char16_t>) { return pv::CreateChar16(m_value); }
+            else if constexpr (std::is_same_v<T, bool>) { return pv::CreateBoolean(m_value); }
+            else if constexpr (std::is_same_v<T, hstring>) { return pv::CreateString(m_value); }
+            else if constexpr (std::is_same_v<T, guid>) { return pv::CreateGuid(m_value); }
+            else { return nullptr; }
+        }
 
         template <typename To>
         To to_scalar() const
