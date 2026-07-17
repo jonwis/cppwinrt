@@ -73,12 +73,12 @@ WINRT_EXPORT namespace winrt::impl
 
         reference operator*() const
         {
-            return m_collection->GetAt(m_index);
+            return fetch(m_index);
         }
 
         reference operator[](difference_type n) const
         {
-            return m_collection->GetAt(m_index + static_cast<std::uint32_t>(n));
+            return fetch(m_index + static_cast<std::uint32_t>(n));
         }
 
         bool operator==(fast_iterator const& other) const noexcept
@@ -126,8 +126,41 @@ WINRT_EXPORT namespace winrt::impl
 
     private:
 
+        // Batched forward traversal for random-access (GetAt-capable) collections. Instead of one
+        // GetAt ABI call per element, `fetch` fills a small block with a single GetMany call and
+        // serves in-window reads from it, so range-for (sequential ++ then *) crosses the ABI
+        // ~once per `block` elements. Random access still works: an out-of-window index re-anchors
+        // the block there, and an at/after-end index defers to GetAt so the component's bounds
+        // behavior (E_BOUNDS) is preserved. Elements are copied out -- no move-out -- so a given
+        // index may be read repeatedly, as the random-access contract requires.
+        static constexpr std::uint32_t block = static_cast<std::uint32_t>(
+            (std::min<std::size_t>)(128, (std::max<std::size_t>)(1, std::size_t{ 2048 } / sizeof(value_type))));
+
+        reference fetch(std::uint32_t const index) const
+        {
+            if (index < m_buffer_base || index >= m_buffer_base + m_buffer_size)
+            {
+                for (std::uint32_t i = 0; i < m_buffer_size; ++i)
+                {
+                    m_buffer[i] = value_type{};
+                }
+                m_buffer_base = index;
+                m_buffer_size = m_collection->GetMany(index, m_buffer);
+            }
+
+            if (index < m_buffer_base + m_buffer_size)
+            {
+                return m_buffer[index - m_buffer_base];
+            }
+
+            return m_collection->GetAt(index);
+        }
+
         T const* m_collection = nullptr;
         std::uint32_t m_index = 0;
+        mutable std::uint32_t m_buffer_base = 0;
+        mutable std::uint32_t m_buffer_size = 0;
+        mutable std::array<value_type, block> m_buffer{};
     };
 
     template <typename T>
