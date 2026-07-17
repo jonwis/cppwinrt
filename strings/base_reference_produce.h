@@ -15,7 +15,8 @@ WINRT_EXPORT namespace winrt::impl
         std::is_same_v<T, std::uint64_t> || std::is_same_v<T, float> ||
         std::is_same_v<T, double> || std::is_same_v<T, char16_t> ||
         std::is_same_v<T, bool> || std::is_same_v<T, hstring> ||
-        std::is_same_v<T, guid>;
+        std::is_same_v<T, guid> || std::is_same_v<T, Windows::Foundation::DateTime> ||
+        std::is_same_v<T, Windows::Foundation::TimeSpan> || std::is_same_v<T, Windows::Foundation::Point>;
 
     // Stock scalar references are marked non_agile so that our query_interface_tearoff supplies
     // IMarshal (delegating to combase PropertyValue for by-value marshaling) instead of the default
@@ -55,6 +56,9 @@ WINRT_EXPORT namespace winrt::impl
             else if constexpr (std::is_same_v<T, bool>) { return pt::Boolean; }
             else if constexpr (std::is_same_v<T, hstring>) { return pt::String; }
             else if constexpr (std::is_same_v<T, guid>) { return pt::Guid; }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return pt::DateTime; }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return pt::TimeSpan; }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return pt::Point; }
             else { return pt::OtherType; }
         }
 
@@ -104,9 +108,9 @@ WINRT_EXPORT namespace winrt::impl
         bool GetBoolean() { if constexpr (std::is_same_v<T, bool>) { return m_value; } else { throw hresult_not_implemented(); } }
         hstring GetString() { if constexpr (std::is_same_v<T, hstring>) { return m_value; } else { throw hresult_not_implemented(); } }
         guid GetGuid() { if constexpr (std::is_same_v<T, guid>) { return m_value; } else { throw hresult_not_implemented(); } }
-        Windows::Foundation::DateTime GetDateTime() { throw hresult_not_implemented(); }
-        Windows::Foundation::TimeSpan GetTimeSpan() { throw hresult_not_implemented(); }
-        Windows::Foundation::Point GetPoint() { throw hresult_not_implemented(); }
+        Windows::Foundation::DateTime GetDateTime() { if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return m_value; } else { throw hresult_not_implemented(); } }
+        Windows::Foundation::TimeSpan GetTimeSpan() { if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return m_value; } else { throw hresult_not_implemented(); } }
+        Windows::Foundation::Point GetPoint() { if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return m_value; } else { throw hresult_not_implemented(); } }
         Windows::Foundation::Size GetSize() { throw hresult_not_implemented(); }
         Windows::Foundation::Rect GetRect() { throw hresult_not_implemented(); }
         void GetUInt8Array(com_array<std::uint8_t> &) { throw hresult_not_implemented(); }
@@ -186,6 +190,9 @@ WINRT_EXPORT namespace winrt::impl
             else if constexpr (std::is_same_v<T, bool>) { return pv::CreateBoolean(m_value); }
             else if constexpr (std::is_same_v<T, hstring>) { return pv::CreateString(m_value); }
             else if constexpr (std::is_same_v<T, guid>) { return pv::CreateGuid(m_value); }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return pv::CreateDateTime(m_value); }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return pv::CreateTimeSpan(m_value); }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return pv::CreatePoint(m_value); }
             else { return nullptr; }
         }
 
@@ -224,27 +231,6 @@ WINRT_EXPORT namespace winrt::impl
     {
         static auto make(GUID const& value) { return reference_traits<guid>::make(reinterpret_cast<guid const&>(value)); }
         using itf = Windows::Foundation::IReference<guid>;
-    };
-
-    template <>
-    struct reference_traits<Windows::Foundation::DateTime>
-    {
-        static auto make(Windows::Foundation::DateTime value) { return Windows::Foundation::PropertyValue::CreateDateTime(value); }
-        using itf = Windows::Foundation::IReference<Windows::Foundation::DateTime>;
-    };
-
-    template <>
-    struct reference_traits<Windows::Foundation::TimeSpan>
-    {
-        static auto make(Windows::Foundation::TimeSpan value) { return Windows::Foundation::PropertyValue::CreateTimeSpan(value); }
-        using itf = Windows::Foundation::IReference<Windows::Foundation::TimeSpan>;
-    };
-
-    template <>
-    struct reference_traits<Windows::Foundation::Point>
-    {
-        static auto make(Windows::Foundation::Point const& value) { return Windows::Foundation::PropertyValue::CreatePoint(value); }
-        using itf = Windows::Foundation::IReference<Windows::Foundation::Point>;
     };
 
     template <>

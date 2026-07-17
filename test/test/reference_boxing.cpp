@@ -60,6 +60,38 @@ TEST_CASE("reference_boxing")
         REQUIRE(pv.GetUInt8() == 7);
         REQUIRE(unbox_value<uint8_t>(box_value(static_cast<uint8_t>(7))) == 7);
     }
+
+    // DateTime, TimeSpan, and Point are also boxed in-process now (they still marshal by value).
+    {
+        Point const point{ 3.0f, 4.0f };
+        auto pv = box_value(point).as<IPropertyValue>();
+        REQUIRE(pv.Type() == PropertyType::Point);
+        REQUIRE(!pv.IsNumericScalar());
+        REQUIRE(pv.GetPoint().X == point.X);
+        REQUIRE(pv.GetPoint().Y == point.Y);
+        auto const round_tripped = unbox_value<Point>(box_value(point));
+        REQUIRE(round_tripped.X == point.X);
+        REQUIRE(round_tripped.Y == point.Y);
+        REQUIRE_THROWS_AS(pv.GetInt32(), hresult_not_implemented);
+    }
+
+    {
+        TimeSpan const span{ std::chrono::seconds{ 90 } };
+        auto pv = box_value(span).as<IPropertyValue>();
+        REQUIRE(pv.Type() == PropertyType::TimeSpan);
+        REQUIRE(!pv.IsNumericScalar());
+        REQUIRE(pv.GetTimeSpan() == span);
+        REQUIRE(unbox_value<TimeSpan>(box_value(span)) == span);
+    }
+
+    {
+        DateTime const when{ TimeSpan{ std::chrono::seconds{ 1000 } } };
+        auto pv = box_value(when).as<IPropertyValue>();
+        REQUIRE(pv.Type() == PropertyType::DateTime);
+        REQUIRE(!pv.IsNumericScalar());
+        REQUIRE(pv.GetDateTime() == when);
+        REQUIRE(unbox_value<DateTime>(box_value(when)) == when);
+    }
 }
 
 // The in-proc reference stays agile but must marshal by value across processes, exactly like a real
