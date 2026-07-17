@@ -1,10 +1,11 @@
 #include "pch.h"
 
 using namespace winrt;
-using namespace winrt::literals;
 using namespace std::literals;
 
 #if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201911L
+
+using namespace winrt::literals;
 
 namespace
 {
