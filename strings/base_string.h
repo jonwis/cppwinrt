@@ -420,7 +420,7 @@ WINRT_EXPORT namespace winrt
 
     private:
 
-        void* m_handle{};
+        [[maybe_unused]] void* m_handle{};
     };
 
     inline void* get_abi(hstring_reference const& object) noexcept

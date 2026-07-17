@@ -146,7 +146,7 @@ WINRT_EXPORT namespace winrt::impl
                 {
                     try
                     {
-                        auto marshal = create_property_value().as<IMarshal>();
+                        auto marshal = create_property_value().template as<IMarshal>();
                         *object = detach_abi(marshal);
                         return error_ok;
                     }
