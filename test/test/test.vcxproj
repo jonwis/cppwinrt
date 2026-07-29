@@ -234,7 +234,6 @@
     <ClCompile Include="box_delegate.cpp" />
     <ClCompile Include="box_guid.cpp" />
     <ClCompile Include="box_string.cpp" />
-    <ClCompile Include="buffered_iterator.cpp" />
     <ClCompile Include="capture.cpp" />
     <ClCompile Include="coro_foundation.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -325,7 +324,6 @@
     <ClCompile Include="main.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="make_ready.cpp" />
     <ClCompile Include="reference_boxing.cpp" />
     <ClCompile Include="memory_buffer.cpp" />
     <ClCompile Include="missing_required_interfaces.cpp" />
