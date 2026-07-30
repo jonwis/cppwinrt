@@ -20,12 +20,12 @@ WINRT_EXPORT namespace winrt::impl
 
     // Stock scalar references are marked non_agile so that our query_interface_tearoff supplies
     // IMarshal (delegating to combase PropertyValue for by-value marshaling) instead of the default
-    // free-threaded-marshaler that marshals by reference. All other T keep the default agile shape.
+    // free-threaded-marshaler that marshals by reference. All other T take an inert marker placeholder,
+    // which implements<> ignores, keeping the default agile shape.
     template <typename T>
-    using reference_base_t = std::conditional_t<
-        is_stock_reference_v<T>,
-        implements<reference<T>, Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue, non_agile>,
-        implements<reference<T>, Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue>>;
+    using reference_base_t = implements<reference<T>,
+        Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue,
+        std::conditional_t<is_stock_reference_v<T>, non_agile, marker>>;
 
     template <typename T>
     struct reference : reference_base_t<T>

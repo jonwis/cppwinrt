@@ -1,6 +1,7 @@
 #include "pch.h"
 #include <objbase.h>
 #include <objidl.h>
+#include <thread>
 
 using namespace winrt;
 using namespace Windows::Foundation;
@@ -119,4 +120,81 @@ TEST_CASE("reference_boxing marshal by value")
     // CLSID_InProcFreeMarshaler - the by-reference class the agile FTM would have produced.
     guid const free_threaded_marshaler{ 0x0000033A, 0x0000, 0x0000, { 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46 } };
     REQUIRE(our_clsid != free_threaded_marshaler);
+}
+
+// The in-proc reference advertises IAgileObject, so handing it between two single-threaded
+// apartments in the same process must resolve to the *same* object pointer - no proxy. The Global
+// Interface Table returns an agile object's original pointer directly, but hands back a proxy (a
+// different identity) for a non-agile object, so pointer equality here confirms the agile fast path.
+TEST_CASE("reference_boxing agile in-proc identity across apartments")
+{
+    auto identity_of = [](::IUnknown* raw) -> void*
+    {
+        com_ptr<::IUnknown> identity;
+        check_hresult(raw->QueryInterface(IID_PPV_ARGS(identity.put())));
+        return identity.get();
+    };
+
+    com_ptr<IGlobalInterfaceTable> git;
+    check_hresult(CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr,
+        CLSCTX_INPROC_SERVER, IID_PPV_ARGS(git.put())));
+
+    Windows::Foundation::IInspectable boxed{ nullptr };
+    DWORD cookie{};
+    void* original_identity{};
+    void* marshaled_identity{};
+    HRESULT sta1_hr = S_OK;
+    HRESULT sta2_hr = S_OK;
+
+    handle registered{ check_pointer(CreateEventW(nullptr, true, false, nullptr)) };
+    handle fetched{ check_pointer(CreateEventW(nullptr, true, false, nullptr)) };
+
+    std::thread sta1([&]
+    {
+        sta1_hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        if (SUCCEEDED(sta1_hr))
+        {
+            boxed = box_value(42);
+            auto unknown = reinterpret_cast<::IUnknown*>(get_abi(boxed));
+            original_identity = identity_of(unknown);
+            sta1_hr = git->RegisterInterfaceInGlobal(unknown, IID_IUnknown, &cookie);
+        }
+        SetEvent(registered.get());
+
+        WaitForSingleObject(fetched.get(), INFINITE);
+        if (SUCCEEDED(sta1_hr))
+        {
+            CoUninitialize();
+        }
+    });
+
+    std::thread sta2([&]
+    {
+        WaitForSingleObject(registered.get(), INFINITE);
+        if (SUCCEEDED(sta1_hr))
+        {
+            sta2_hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            if (SUCCEEDED(sta2_hr))
+            {
+                ::IUnknown* raw{};
+                sta2_hr = git->GetInterfaceFromGlobal(cookie, IID_IUnknown, reinterpret_cast<void**>(&raw));
+                if (SUCCEEDED(sta2_hr))
+                {
+                    marshaled_identity = identity_of(raw);
+                    raw->Release();
+                }
+                git->RevokeInterfaceFromGlobal(cookie);
+                CoUninitialize();
+            }
+        }
+        SetEvent(fetched.get());
+    });
+
+    sta1.join();
+    sta2.join();
+
+    REQUIRE(SUCCEEDED(sta1_hr));
+    REQUIRE(SUCCEEDED(sta2_hr));
+    REQUIRE(original_identity != nullptr);
+    REQUIRE(original_identity == marshaled_identity);
 }
