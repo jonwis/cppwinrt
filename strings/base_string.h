@@ -503,6 +503,8 @@ WINRT_EXPORT namespace winrt
         template <impl::hstring_literal_storage Literal>
         constexpr hstring_reference operator ""_hs() noexcept
         {
+            static_assert(Literal.value[Literal.size - 1] == L'\0', "_hs requires a null-terminated wide string literal");
+
             if constexpr (Literal.size <= 1)
             {
                 return hstring_reference{};

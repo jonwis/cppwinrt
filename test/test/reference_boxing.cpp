@@ -19,6 +19,13 @@ TEST_CASE("reference_boxing")
         REQUIRE(pv.GetInt32() == 42);
         REQUIRE(pv.GetInt16() == 42);
         REQUIRE(pv.GetDouble() == 42.0);
+        // A scalar reference holds no array, so every array getter routes through get_as and throws.
+        {
+            com_array<int32_t> ints;
+            REQUIRE_THROWS_AS(pv.GetInt32Array(ints), hresult_not_implemented);
+            com_array<hstring> strings;
+            REQUIRE_THROWS_AS(pv.GetStringArray(strings), hresult_not_implemented);
+        }
         REQUIRE(unbox_value<int32_t>(boxed) == 42);
     }
 
@@ -93,6 +100,67 @@ TEST_CASE("reference_boxing")
         REQUIRE(pv.GetDateTime() == when);
         REQUIRE(unbox_value<DateTime>(box_value(when)) == when);
     }
+}
+
+// Array boxing produces a local IReferenceArray<T> / IPropertyValue (no combase PropertyValue) for the
+// stock element types. Confirm the array PropertyType, round-trips, and the get_as throw behavior.
+TEST_CASE("reference_boxing arrays")
+{
+    {
+        int32_t values[]{ 0, 42, 1729, -1 };
+        auto boxed = box_value(com_array<int32_t>{ std::begin(values), std::end(values) });
+        auto pv = boxed.as<IPropertyValue>();
+        REQUIRE(pv.Type() == PropertyType::Int32Array);
+        REQUIRE(!pv.IsNumericScalar());
+
+        com_array<int32_t> out;
+        pv.GetInt32Array(out);
+        REQUIRE(out == array_view<int32_t>{ values });
+
+        // A scalar getter on an array PV throws, and so does a mismatched-element array getter.
+        REQUIRE_THROWS_AS(pv.GetInt32(), hresult_not_implemented);
+        com_array<double> wrong;
+        REQUIRE_THROWS_AS(pv.GetDoubleArray(wrong), hresult_not_implemented);
+
+        REQUIRE(unbox_value<com_array<int32_t>>(boxed) == array_view<int32_t>{ values });
+        REQUIRE(boxed.as<IReferenceArray<int32_t>>().Value() == array_view<int32_t>{ values });
+    }
+
+    // guid arrays are local too.
+    {
+        guid values[]{
+            { 0x11223344, 0x5566, 0x7788, { 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00 } },
+            { 0x00112233, 0x4455, 0x6677, { 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF } } };
+        auto boxed = box_value(com_array<guid>{ std::begin(values), std::end(values) });
+        REQUIRE(boxed.as<IPropertyValue>().Type() == PropertyType::GuidArray);
+        REQUIRE(unbox_value<com_array<guid>>(boxed) == array_view<guid>{ values });
+    }
+}
+
+// The local array reference must marshal by value across processes just like the scalar one: its
+// IMarshal reports the same unmarshal class as a genuine combase array PropertyValue, and not the
+// free-threaded (by-reference) class.
+TEST_CASE("reference_boxing array marshal by value")
+{
+    int32_t values[]{ 1, 2, 3 };
+    auto boxed = box_value(com_array<int32_t>{ std::begin(values), std::end(values) });
+    REQUIRE(boxed.try_as<IAgileObject>());
+    auto ours = boxed.as<impl::IMarshal>();
+
+    auto genuine = PropertyValue::CreateInt32Array(values);
+    auto reference = genuine.as<impl::IMarshal>();
+
+    guid our_clsid{};
+    guid reference_clsid{};
+    check_hresult(ours->GetUnmarshalClass(guid_of<IPropertyValue>(), get_unknown(boxed),
+        MSHCTX_DIFFERENTMACHINE, nullptr, MSHLFLAGS_NORMAL, &our_clsid));
+    check_hresult(reference->GetUnmarshalClass(guid_of<IPropertyValue>(), get_unknown(genuine),
+        MSHCTX_DIFFERENTMACHINE, nullptr, MSHLFLAGS_NORMAL, &reference_clsid));
+
+    REQUIRE(our_clsid == reference_clsid);
+
+    guid const free_threaded_marshaler{ 0x0000033A, 0x0000, 0x0000, { 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46 } };
+    REQUIRE(our_clsid != free_threaded_marshaler);
 }
 
 // The in-proc reference stays agile but must marshal by value across processes, exactly like a real

@@ -4,6 +4,9 @@ WINRT_EXPORT namespace winrt::impl
     template <typename T>
     struct reference;
 
+    template <typename T>
+    struct reference_array;
+
     // The scalar types that combase PropertyValue can carry by value. box_value on one of these
     // produces an in-process reference<T> for the fast path, but must still marshal by value across
     // apartments/processes so the destination sees a real PropertyValue copy rather than a proxy.
@@ -17,6 +20,43 @@ WINRT_EXPORT namespace winrt::impl
         std::is_same_v<T, bool> || std::is_same_v<T, hstring> ||
         std::is_same_v<T, guid> || std::is_same_v<T, Windows::Foundation::DateTime> ||
         std::is_same_v<T, Windows::Foundation::TimeSpan> || std::is_same_v<T, Windows::Foundation::Point>;
+
+    // The IPropertyValue::Type() tag for a scalar T. The matching array reference reports the same
+    // tag shifted into the *Array range (each scalar PropertyType has an array counterpart 1024 above).
+    template <typename T>
+    constexpr Windows::Foundation::PropertyType scalar_property_type() noexcept
+    {
+        using pt = Windows::Foundation::PropertyType;
+
+        if constexpr (std::is_same_v<T, std::uint8_t>) { return pt::UInt8; }
+        else if constexpr (std::is_same_v<T, std::int16_t>) { return pt::Int16; }
+        else if constexpr (std::is_same_v<T, std::uint16_t>) { return pt::UInt16; }
+        else if constexpr (std::is_same_v<T, std::int32_t>) { return pt::Int32; }
+        else if constexpr (std::is_same_v<T, std::uint32_t>) { return pt::UInt32; }
+        else if constexpr (std::is_same_v<T, std::int64_t>) { return pt::Int64; }
+        else if constexpr (std::is_same_v<T, std::uint64_t>) { return pt::UInt64; }
+        else if constexpr (std::is_same_v<T, float>) { return pt::Single; }
+        else if constexpr (std::is_same_v<T, double>) { return pt::Double; }
+        else if constexpr (std::is_same_v<T, char16_t>) { return pt::Char16; }
+        else if constexpr (std::is_same_v<T, bool>) { return pt::Boolean; }
+        else if constexpr (std::is_same_v<T, hstring>) { return pt::String; }
+        else if constexpr (std::is_same_v<T, Windows::Foundation::IInspectable>) { return pt::Inspectable; }
+        else if constexpr (std::is_same_v<T, guid>) { return pt::Guid; }
+        else if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return pt::DateTime; }
+        else if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return pt::TimeSpan; }
+        else if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return pt::Point; }
+        else if constexpr (std::is_same_v<T, Windows::Foundation::Size>) { return pt::Size; }
+        else if constexpr (std::is_same_v<T, Windows::Foundation::Rect>) { return pt::Rect; }
+        else { return pt::OtherType; }
+    }
+
+    // The array PropertyType tag that pairs with scalar T (UInt8 -> UInt8Array, etc.).
+    template <typename T>
+    constexpr Windows::Foundation::PropertyType array_property_type() noexcept
+    {
+        return static_cast<Windows::Foundation::PropertyType>(
+            static_cast<std::int32_t>(scalar_property_type<T>()) + 1024);
+    }
 
     // Stock scalar references are marked non_agile so that our query_interface_tearoff supplies
     // IMarshal (delegating to combase PropertyValue for by-value marshaling) instead of the default
@@ -41,97 +81,51 @@ WINRT_EXPORT namespace winrt::impl
 
         Windows::Foundation::PropertyType Type() const noexcept
         {
-            using pt = Windows::Foundation::PropertyType;
-
-            if constexpr (std::is_same_v<T, std::uint8_t>) { return pt::UInt8; }
-            else if constexpr (std::is_same_v<T, std::int16_t>) { return pt::Int16; }
-            else if constexpr (std::is_same_v<T, std::uint16_t>) { return pt::UInt16; }
-            else if constexpr (std::is_same_v<T, std::int32_t>) { return pt::Int32; }
-            else if constexpr (std::is_same_v<T, std::uint32_t>) { return pt::UInt32; }
-            else if constexpr (std::is_same_v<T, std::int64_t>) { return pt::Int64; }
-            else if constexpr (std::is_same_v<T, std::uint64_t>) { return pt::UInt64; }
-            else if constexpr (std::is_same_v<T, float>) { return pt::Single; }
-            else if constexpr (std::is_same_v<T, double>) { return pt::Double; }
-            else if constexpr (std::is_same_v<T, char16_t>) { return pt::Char16; }
-            else if constexpr (std::is_same_v<T, bool>) { return pt::Boolean; }
-            else if constexpr (std::is_same_v<T, hstring>) { return pt::String; }
-            else if constexpr (std::is_same_v<T, guid>) { return pt::Guid; }
-            else if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return pt::DateTime; }
-            else if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return pt::TimeSpan; }
-            else if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return pt::Point; }
-            else { return pt::OtherType; }
+            return scalar_property_type<T>();
         }
 
         static constexpr bool IsNumericScalar() noexcept
         {
-            return (std::is_arithmetic_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, char16_t>) || std::is_enum_v<T>;
+            return is_numeric_scalar_v<T>;
         }
 
-        std::uint8_t GetUInt8() const
-        {
-            return to_scalar<std::uint8_t>();
-        }
-
-        std::int16_t GetInt16() const
-        {
-            return to_scalar<std::int16_t>();
-        }
-
-        std::uint16_t GetUInt16() const
-        {
-            return to_scalar<std::uint16_t>();
-        }
-
-        std::int32_t GetInt32() const
-        {
-            return to_scalar<std::int32_t>();
-        }
-
-        std::uint32_t GetUInt32() const
-        {
-            return to_scalar<std::uint32_t>();
-        }
-
-        std::int64_t GetInt64() const
-        {
-            return to_scalar<std::int64_t>();
-        }
-
-        std::uint64_t GetUInt64() const
-        {
-            return to_scalar<std::uint64_t>();
-        }
-
-        float GetSingle() { return to_scalar<float>(); }
-        double GetDouble() { return to_scalar<double>(); }
-        char16_t GetChar16() { if constexpr (std::is_same_v<T, char16_t>) { return m_value; } else { throw hresult_not_implemented(); } }
-        bool GetBoolean() { if constexpr (std::is_same_v<T, bool>) { return m_value; } else { throw hresult_not_implemented(); } }
-        hstring GetString() { if constexpr (std::is_same_v<T, hstring>) { return m_value; } else { throw hresult_not_implemented(); } }
-        guid GetGuid() { if constexpr (std::is_same_v<T, guid>) { return m_value; } else { throw hresult_not_implemented(); } }
-        Windows::Foundation::DateTime GetDateTime() { if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return m_value; } else { throw hresult_not_implemented(); } }
-        Windows::Foundation::TimeSpan GetTimeSpan() { if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return m_value; } else { throw hresult_not_implemented(); } }
-        Windows::Foundation::Point GetPoint() { if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return m_value; } else { throw hresult_not_implemented(); } }
-        Windows::Foundation::Size GetSize() { throw hresult_not_implemented(); }
-        Windows::Foundation::Rect GetRect() { throw hresult_not_implemented(); }
-        void GetUInt8Array(com_array<std::uint8_t> &) { throw hresult_not_implemented(); }
-        void GetInt16Array(com_array<std::int16_t> &) { throw hresult_not_implemented(); }
-        void GetUInt16Array(com_array<std::uint16_t> &) { throw hresult_not_implemented(); }
-        void GetInt32Array(com_array<std::int32_t> &) { throw hresult_not_implemented(); }
-        void GetUInt32Array(com_array<std::uint32_t> &) { throw hresult_not_implemented(); }
-        void GetInt64Array(com_array<std::int64_t> &) { throw hresult_not_implemented(); }
-        void GetUInt64Array(com_array<std::uint64_t> &) { throw hresult_not_implemented(); }
-        void GetSingleArray(com_array<float> &) { throw hresult_not_implemented(); }
-        void GetDoubleArray(com_array<double> &) { throw hresult_not_implemented(); }
-        void GetChar16Array(com_array<char16_t> &) { throw hresult_not_implemented(); }
-        void GetBooleanArray(com_array<bool> &) { throw hresult_not_implemented(); }
-        void GetStringArray(com_array<hstring> &) { throw hresult_not_implemented(); }
-        void GetInspectableArray(com_array<Windows::Foundation::IInspectable> &) { throw hresult_not_implemented(); }
-        void GetGuidArray(com_array<guid> &) { throw hresult_not_implemented(); }
-        void GetDateTimeArray(com_array<Windows::Foundation::DateTime> &) { throw hresult_not_implemented(); }
-        void GetTimeSpanArray(com_array<Windows::Foundation::TimeSpan> &) { throw hresult_not_implemented(); }
-        void GetPointArray(com_array<Windows::Foundation::Point> &) { throw hresult_not_implemented(); }
-        void GetSizeArray(com_array<Windows::Foundation::Size> &) { throw hresult_not_implemented(); }
-        void GetRectArray(com_array<Windows::Foundation::Rect> &) { throw hresult_not_implemented(); }
+        std::uint8_t GetUInt8() const { return get_as<std::uint8_t>(); }
+        std::int16_t GetInt16() const { return get_as<std::int16_t>(); }
+        std::uint16_t GetUInt16() const { return get_as<std::uint16_t>(); }
+        std::int32_t GetInt32() const { return get_as<std::int32_t>(); }
+        std::uint32_t GetUInt32() const { return get_as<std::uint32_t>(); }
+        std::int64_t GetInt64() const { return get_as<std::int64_t>(); }
+        std::uint64_t GetUInt64() const { return get_as<std::uint64_t>(); }
+        float GetSingle() const { return get_as<float>(); }
+        double GetDouble() const { return get_as<double>(); }
+        char16_t GetChar16() const { return get_as<char16_t>(); }
+        bool GetBoolean() const { return get_as<bool>(); }
+        hstring GetString() const { return get_as<hstring>(); }
+        guid GetGuid() const { return get_as<guid>(); }
+        Windows::Foundation::DateTime GetDateTime() const { return get_as<Windows::Foundation::DateTime>(); }
+        Windows::Foundation::TimeSpan GetTimeSpan() const { return get_as<Windows::Foundation::TimeSpan>(); }
+        Windows::Foundation::Point GetPoint() const { return get_as<Windows::Foundation::Point>(); }
+        Windows::Foundation::Size GetSize() const { return get_as<Windows::Foundation::Size>(); }
+        Windows::Foundation::Rect GetRect() const { return get_as<Windows::Foundation::Rect>(); }
+        void GetUInt8Array(com_array<std::uint8_t>& value) const { get_as(value); }
+        void GetInt16Array(com_array<std::int16_t>& value) const { get_as(value); }
+        void GetUInt16Array(com_array<std::uint16_t>& value) const { get_as(value); }
+        void GetInt32Array(com_array<std::int32_t>& value) const { get_as(value); }
+        void GetUInt32Array(com_array<std::uint32_t>& value) const { get_as(value); }
+        void GetInt64Array(com_array<std::int64_t>& value) const { get_as(value); }
+        void GetUInt64Array(com_array<std::uint64_t>& value) const { get_as(value); }
+        void GetSingleArray(com_array<float>& value) const { get_as(value); }
+        void GetDoubleArray(com_array<double>& value) const { get_as(value); }
+        void GetChar16Array(com_array<char16_t>& value) const { get_as(value); }
+        void GetBooleanArray(com_array<bool>& value) const { get_as(value); }
+        void GetStringArray(com_array<hstring>& value) const { get_as(value); }
+        void GetInspectableArray(com_array<Windows::Foundation::IInspectable>& value) const { get_as(value); }
+        void GetGuidArray(com_array<guid>& value) const { get_as(value); }
+        void GetDateTimeArray(com_array<Windows::Foundation::DateTime>& value) const { get_as(value); }
+        void GetTimeSpanArray(com_array<Windows::Foundation::TimeSpan>& value) const { get_as(value); }
+        void GetPointArray(com_array<Windows::Foundation::Point>& value) const { get_as(value); }
+        void GetSizeArray(com_array<Windows::Foundation::Size>& value) const { get_as(value); }
+        void GetRectArray(com_array<Windows::Foundation::Rect>& value) const { get_as(value); }
 
     private:
 
@@ -196,10 +190,21 @@ WINRT_EXPORT namespace winrt::impl
             else { return nullptr; }
         }
 
+        template <typename U>
+        static constexpr bool is_numeric_scalar_v =
+            (std::is_arithmetic_v<U> && !std::is_same_v<U, bool> && !std::is_same_v<U, char16_t>) || std::is_enum_v<U>;
+
+        // Single accessor behind every scalar IPropertyValue getter. An exact type match returns the
+        // stored value and a numeric source converts to any numeric target (matching combase
+        // PropertyValue); anything else throws.
         template <typename To>
-        To to_scalar() const
+        To get_as() const
         {
-            if constexpr (IsNumericScalar())
+            if constexpr (std::is_same_v<T, To>)
+            {
+                return m_value;
+            }
+            else if constexpr (is_numeric_scalar_v<To> && is_numeric_scalar_v<T>)
             {
                 return static_cast<To>(m_value);
             }
@@ -209,7 +214,168 @@ WINRT_EXPORT namespace winrt::impl
             }
         }
 
+        // A scalar reference never holds an array, so every array getter throws.
+        template <typename To>
+        void get_as(com_array<To> const&) const
+        {
+            throw hresult_not_implemented();
+        }
+
         T m_value;
+    };
+
+    // Marks array element types that combase PropertyValue can carry by value, mirroring
+    // is_stock_reference_v for scalars. box_value(com_array<T>) on one of these produces an in-process
+    // reference_array<T> and still marshals by value across apartments/processes.
+    template <typename T>
+    using reference_array_base_t = implements<reference_array<T>,
+        Windows::Foundation::IReferenceArray<T>, Windows::Foundation::IPropertyValue,
+        std::conditional_t<is_stock_reference_v<T>, non_agile, marker>>;
+
+    // In-process IReferenceArray<T> / IPropertyValue, the array counterpart to reference<T>. Boxing an
+    // array copies it in once; the getters hand back fresh copies so the projection's move-out is safe.
+    template <typename T>
+    struct reference_array : reference_array_base_t<T>
+    {
+        reference_array(array_view<T const> const& value) : m_value(value.begin(), value.end())
+        {
+        }
+
+        com_array<T> Value() const
+        {
+            return com_array<T>(m_value.begin(), m_value.end());
+        }
+
+        Windows::Foundation::PropertyType Type() const noexcept
+        {
+            return array_property_type<T>();
+        }
+
+        static constexpr bool IsNumericScalar() noexcept
+        {
+            return false;
+        }
+
+        std::uint8_t GetUInt8() const { return get_as<std::uint8_t>(); }
+        std::int16_t GetInt16() const { return get_as<std::int16_t>(); }
+        std::uint16_t GetUInt16() const { return get_as<std::uint16_t>(); }
+        std::int32_t GetInt32() const { return get_as<std::int32_t>(); }
+        std::uint32_t GetUInt32() const { return get_as<std::uint32_t>(); }
+        std::int64_t GetInt64() const { return get_as<std::int64_t>(); }
+        std::uint64_t GetUInt64() const { return get_as<std::uint64_t>(); }
+        float GetSingle() const { return get_as<float>(); }
+        double GetDouble() const { return get_as<double>(); }
+        char16_t GetChar16() const { return get_as<char16_t>(); }
+        bool GetBoolean() const { return get_as<bool>(); }
+        hstring GetString() const { return get_as<hstring>(); }
+        guid GetGuid() const { return get_as<guid>(); }
+        Windows::Foundation::DateTime GetDateTime() const { return get_as<Windows::Foundation::DateTime>(); }
+        Windows::Foundation::TimeSpan GetTimeSpan() const { return get_as<Windows::Foundation::TimeSpan>(); }
+        Windows::Foundation::Point GetPoint() const { return get_as<Windows::Foundation::Point>(); }
+        Windows::Foundation::Size GetSize() const { return get_as<Windows::Foundation::Size>(); }
+        Windows::Foundation::Rect GetRect() const { return get_as<Windows::Foundation::Rect>(); }
+        void GetUInt8Array(com_array<std::uint8_t>& value) const { get_as(value); }
+        void GetInt16Array(com_array<std::int16_t>& value) const { get_as(value); }
+        void GetUInt16Array(com_array<std::uint16_t>& value) const { get_as(value); }
+        void GetInt32Array(com_array<std::int32_t>& value) const { get_as(value); }
+        void GetUInt32Array(com_array<std::uint32_t>& value) const { get_as(value); }
+        void GetInt64Array(com_array<std::int64_t>& value) const { get_as(value); }
+        void GetUInt64Array(com_array<std::uint64_t>& value) const { get_as(value); }
+        void GetSingleArray(com_array<float>& value) const { get_as(value); }
+        void GetDoubleArray(com_array<double>& value) const { get_as(value); }
+        void GetChar16Array(com_array<char16_t>& value) const { get_as(value); }
+        void GetBooleanArray(com_array<bool>& value) const { get_as(value); }
+        void GetStringArray(com_array<hstring>& value) const { get_as(value); }
+        void GetInspectableArray(com_array<Windows::Foundation::IInspectable>& value) const { get_as(value); }
+        void GetGuidArray(com_array<guid>& value) const { get_as(value); }
+        void GetDateTimeArray(com_array<Windows::Foundation::DateTime>& value) const { get_as(value); }
+        void GetTimeSpanArray(com_array<Windows::Foundation::TimeSpan>& value) const { get_as(value); }
+        void GetPointArray(com_array<Windows::Foundation::Point>& value) const { get_as(value); }
+        void GetSizeArray(com_array<Windows::Foundation::Size>& value) const { get_as(value); }
+        void GetRectArray(com_array<Windows::Foundation::Rect>& value) const { get_as(value); }
+
+    private:
+
+        // For stock element arrays, hand out an IMarshal that marshals by value via combase's array
+        // PropertyValue - the same lazy hop reference<T> uses, so box_value/unbox_value stay local.
+        std::int32_t query_interface_tearoff(guid const& id, void** object) const noexcept override
+        {
+            if constexpr (is_stock_reference_v<T>)
+            {
+                if (is_guid_of<IMarshal>(id))
+                {
+                    try
+                    {
+                        auto marshal = create_property_value().template as<IMarshal>();
+                        *object = detach_abi(marshal);
+                        return error_ok;
+                    }
+                    catch (...)
+                    {
+                        *object = nullptr;
+                        return to_hresult();
+                    }
+                }
+
+                if (is_guid_of<IAgileObject>(id))
+                {
+                    auto unknown = reinterpret_cast<unknown_abi*>(to_abi<Windows::Foundation::IReferenceArray<T>>(this));
+                    unknown->AddRef();
+                    *object = unknown;
+                    return error_ok;
+                }
+            }
+
+            *object = nullptr;
+            return error_no_interface;
+        }
+
+        Windows::Foundation::IInspectable create_property_value() const
+        {
+            using pv = Windows::Foundation::PropertyValue;
+
+            if constexpr (std::is_same_v<T, std::uint8_t>) { return pv::CreateUInt8Array(m_value); }
+            else if constexpr (std::is_same_v<T, std::int16_t>) { return pv::CreateInt16Array(m_value); }
+            else if constexpr (std::is_same_v<T, std::uint16_t>) { return pv::CreateUInt16Array(m_value); }
+            else if constexpr (std::is_same_v<T, std::int32_t>) { return pv::CreateInt32Array(m_value); }
+            else if constexpr (std::is_same_v<T, std::uint32_t>) { return pv::CreateUInt32Array(m_value); }
+            else if constexpr (std::is_same_v<T, std::int64_t>) { return pv::CreateInt64Array(m_value); }
+            else if constexpr (std::is_same_v<T, std::uint64_t>) { return pv::CreateUInt64Array(m_value); }
+            else if constexpr (std::is_same_v<T, float>) { return pv::CreateSingleArray(m_value); }
+            else if constexpr (std::is_same_v<T, double>) { return pv::CreateDoubleArray(m_value); }
+            else if constexpr (std::is_same_v<T, char16_t>) { return pv::CreateChar16Array(m_value); }
+            else if constexpr (std::is_same_v<T, bool>) { return pv::CreateBooleanArray(m_value); }
+            else if constexpr (std::is_same_v<T, hstring>) { return pv::CreateStringArray(m_value); }
+            else if constexpr (std::is_same_v<T, guid>) { return pv::CreateGuidArray(m_value); }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::DateTime>) { return pv::CreateDateTimeArray(m_value); }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::TimeSpan>) { return pv::CreateTimeSpanArray(m_value); }
+            else if constexpr (std::is_same_v<T, Windows::Foundation::Point>) { return pv::CreatePointArray(m_value); }
+            else { return nullptr; }
+        }
+
+        // An array reference holds no scalar, so every scalar getter throws.
+        template <typename To>
+        To get_as() const
+        {
+            throw hresult_not_implemented();
+        }
+
+        // The matching array getter hands back a fresh copy of the stored array; any other element
+        // type throws.
+        template <typename To>
+        void get_as(com_array<To>& value) const
+        {
+            if constexpr (std::is_same_v<T, To>)
+            {
+                value = com_array<To>(m_value.begin(), m_value.end());
+            }
+            else
+            {
+                throw hresult_not_implemented();
+            }
+        }
+
+        com_array<T> m_value;
     };
 
     template <typename T>
@@ -250,80 +416,85 @@ WINRT_EXPORT namespace winrt::impl
     template <>
     struct reference_traits<com_array<std::uint8_t>>
     {
-        static auto make(array_view<std::uint8_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt8Array(value); }
+        static auto make(array_view<std::uint8_t const> const& value) { return winrt::make<impl::reference_array<std::uint8_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::uint8_t>;
     };
 
     template <>
     struct reference_traits<com_array<std::int16_t>>
     {
-        static auto make(array_view<std::int16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt16Array(value); }
+        static auto make(array_view<std::int16_t const> const& value) { return winrt::make<impl::reference_array<std::int16_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::int16_t>;
     };
 
     template <>
     struct reference_traits<com_array<std::uint16_t>>
     {
-        static auto make(array_view<std::uint16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt16Array(value); }
+        static auto make(array_view<std::uint16_t const> const& value) { return winrt::make<impl::reference_array<std::uint16_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::uint16_t>;
     };
 
     template <>
     struct reference_traits<com_array<std::int32_t>>
     {
-        static auto make(array_view<std::int32_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt32Array(value); }
+        static auto make(array_view<std::int32_t const> const& value) { return winrt::make<impl::reference_array<std::int32_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::int32_t>;
     };
 
     template <>
     struct reference_traits<com_array<std::uint32_t>>
     {
-        static auto make(com_array<std::uint32_t> const& value) { return Windows::Foundation::PropertyValue::CreateUInt32Array(value); }
+        static auto make(com_array<std::uint32_t> const& value) { return winrt::make<impl::reference_array<std::uint32_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::uint32_t>;
     };
 
     template <>
     struct reference_traits<com_array<std::int64_t>>
     {
-        static auto make(array_view<std::int64_t const> const& value) { return Windows::Foundation::PropertyValue::CreateInt64Array(value); }
+        static auto make(array_view<std::int64_t const> const& value) { return winrt::make<impl::reference_array<std::int64_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::int64_t>;
     };
 
     template <>
     struct reference_traits<com_array<std::uint64_t>>
     {
-        static auto make(array_view<std::uint64_t const> const& value) { return Windows::Foundation::PropertyValue::CreateUInt64Array(value); }
+        static auto make(array_view<std::uint64_t const> const& value) { return winrt::make<impl::reference_array<std::uint64_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<std::uint64_t>;
     };
 
     template <>
     struct reference_traits<com_array<float>>
     {
-        static auto make(array_view<float const> const& value) { return Windows::Foundation::PropertyValue::CreateSingleArray(value); }
+        static auto make(array_view<float const> const& value) { return winrt::make<impl::reference_array<float>>(value); }
         using itf = Windows::Foundation::IReferenceArray<float>;
     };
 
     template <>
     struct reference_traits<com_array<double>>
     {
-        static auto make(array_view<double const> const& value) { return Windows::Foundation::PropertyValue::CreateDoubleArray(value); }
+        static auto make(array_view<double const> const& value) { return winrt::make<impl::reference_array<double>>(value); }
         using itf = Windows::Foundation::IReferenceArray<double>;
     };
 
     template <>
     struct reference_traits<com_array<char16_t>>
     {
-        static auto make(array_view<char16_t const> const& value) { return Windows::Foundation::PropertyValue::CreateChar16Array(value); }
+        static auto make(array_view<char16_t const> const& value) { return winrt::make<impl::reference_array<char16_t>>(value); }
         using itf = Windows::Foundation::IReferenceArray<char16_t>;
     };
 
     template <>
     struct reference_traits<com_array<bool>>
     {
-        static auto make(array_view<bool const> const& value) { return Windows::Foundation::PropertyValue::CreateBooleanArray(value); }
+        static auto make(array_view<bool const> const& value) { return winrt::make<impl::reference_array<bool>>(value); }
         using itf = Windows::Foundation::IReferenceArray<bool>;
     };
 
+    // These array element types stay on combase PropertyValue. hstring, DateTime, and TimeSpan project
+    // to a type whose layout differs from its ABI (a handle, or a chrono type over the raw int64), and
+    // the generic IReferenceArray<T> producer marshals the element bit-for-bit, so a local producer
+    // can't round-trip them. IInspectable, Size, and Rect are outside the stock set (mirroring the
+    // scalar reference<T> path). box_value/unbox_value of every other array element type is fully local.
     template <>
     struct reference_traits<com_array<hstring>>
     {
@@ -341,14 +512,14 @@ WINRT_EXPORT namespace winrt::impl
     template <>
     struct reference_traits<com_array<guid>>
     {
-        static auto make(array_view<guid const> const& value) { return Windows::Foundation::PropertyValue::CreateGuidArray(value); }
+        static auto make(array_view<guid const> const& value) { return winrt::make<impl::reference_array<guid>>(value); }
         using itf = Windows::Foundation::IReferenceArray<guid>;
     };
 
     template <>
     struct reference_traits<com_array<GUID>>
     {
-        static auto make(array_view<GUID const> const& value) { return Windows::Foundation::PropertyValue::CreateGuidArray(reinterpret_cast<array_view<guid const> const&>(value)); }
+        static auto make(array_view<GUID const> const& value) { return winrt::make<impl::reference_array<guid>>(reinterpret_cast<array_view<guid const> const&>(value)); }
         using itf = Windows::Foundation::IReferenceArray<guid>;
     };
 
@@ -369,7 +540,7 @@ WINRT_EXPORT namespace winrt::impl
     template <>
     struct reference_traits<com_array<Windows::Foundation::Point>>
     {
-        static auto make(array_view<Windows::Foundation::Point const> const& value) { return Windows::Foundation::PropertyValue::CreatePointArray(value); }
+        static auto make(array_view<Windows::Foundation::Point const> const& value) { return winrt::make<impl::reference_array<Windows::Foundation::Point>>(value); }
         using itf = Windows::Foundation::IReferenceArray<Windows::Foundation::Point>;
     };
 
