@@ -7,9 +7,6 @@ WINRT_EXPORT namespace winrt::impl
     template <typename T>
     struct reference_array;
 
-    // The scalar types that combase PropertyValue can carry by value. box_value on one of these
-    // produces an in-process reference<T> for the fast path, but must still marshal by value across
-    // apartments/processes so the destination sees a real PropertyValue copy rather than a proxy.
     template <typename T>
     inline constexpr bool is_stock_reference_v =
         std::is_same_v<T, std::uint8_t> || std::is_same_v<T, std::int16_t> ||
@@ -21,8 +18,6 @@ WINRT_EXPORT namespace winrt::impl
         std::is_same_v<T, guid> || std::is_same_v<T, Windows::Foundation::DateTime> ||
         std::is_same_v<T, Windows::Foundation::TimeSpan> || std::is_same_v<T, Windows::Foundation::Point>;
 
-    // The IPropertyValue::Type() tag for a scalar T. The matching array reference reports the same
-    // tag shifted into the *Array range (each scalar PropertyType has an array counterpart 1024 above).
     template <typename T>
     constexpr Windows::Foundation::PropertyType scalar_property_type() noexcept
     {
@@ -50,7 +45,6 @@ WINRT_EXPORT namespace winrt::impl
         else { return pt::OtherType; }
     }
 
-    // The array PropertyType tag that pairs with scalar T (UInt8 -> UInt8Array, etc.).
     template <typename T>
     constexpr Windows::Foundation::PropertyType array_property_type() noexcept
     {
@@ -58,80 +52,67 @@ WINRT_EXPORT namespace winrt::impl
             static_cast<std::int32_t>(scalar_property_type<T>()) + 1024);
     }
 
-    // Stock scalar references are marked non_agile so that our query_interface_tearoff supplies
-    // IMarshal (delegating to combase PropertyValue for by-value marshaling) instead of the default
-    // free-threaded-marshaler that marshals by reference. All other T take an inert marker placeholder,
-    // which implements<> ignores, keeping the default agile shape.
-    template <typename T>
-    using reference_base_t = implements<reference<T>,
-        Windows::Foundation::IReference<T>, Windows::Foundation::IPropertyValue,
-        std::conditional_t<is_stock_reference_v<T>, non_agile, marker>>;
+    template <typename U>
+    inline constexpr bool is_numeric_scalar_v =
+        (std::is_arithmetic_v<U> && !std::is_same_v<U, bool> && !std::is_same_v<U, char16_t>) || std::is_enum_v<U>;
 
-    template <typename T>
-    struct reference : reference_base_t<T>
+    template <typename Derived, typename T, typename Interface, bool IsArray>
+    struct reference_producer : implements<Derived, Interface, Windows::Foundation::IPropertyValue,
+        std::conditional_t<is_stock_reference_v<T>, non_agile, marker>>
     {
-        reference(T const& value) : m_value(value)
-        {
-        }
-
-        T Value() const
-        {
-            return m_value;
-        }
-
         Windows::Foundation::PropertyType Type() const noexcept
         {
-            return scalar_property_type<T>();
+            if constexpr (IsArray) { return array_property_type<T>(); }
+            else { return scalar_property_type<T>(); }
         }
 
         static constexpr bool IsNumericScalar() noexcept
         {
-            return is_numeric_scalar_v<T>;
+            return !IsArray && is_numeric_scalar_v<T>;
         }
 
-        std::uint8_t GetUInt8() const { return get_as<std::uint8_t>(); }
-        std::int16_t GetInt16() const { return get_as<std::int16_t>(); }
-        std::uint16_t GetUInt16() const { return get_as<std::uint16_t>(); }
-        std::int32_t GetInt32() const { return get_as<std::int32_t>(); }
-        std::uint32_t GetUInt32() const { return get_as<std::uint32_t>(); }
-        std::int64_t GetInt64() const { return get_as<std::int64_t>(); }
-        std::uint64_t GetUInt64() const { return get_as<std::uint64_t>(); }
-        float GetSingle() const { return get_as<float>(); }
-        double GetDouble() const { return get_as<double>(); }
-        char16_t GetChar16() const { return get_as<char16_t>(); }
-        bool GetBoolean() const { return get_as<bool>(); }
-        hstring GetString() const { return get_as<hstring>(); }
-        guid GetGuid() const { return get_as<guid>(); }
-        Windows::Foundation::DateTime GetDateTime() const { return get_as<Windows::Foundation::DateTime>(); }
-        Windows::Foundation::TimeSpan GetTimeSpan() const { return get_as<Windows::Foundation::TimeSpan>(); }
-        Windows::Foundation::Point GetPoint() const { return get_as<Windows::Foundation::Point>(); }
-        Windows::Foundation::Size GetSize() const { return get_as<Windows::Foundation::Size>(); }
-        Windows::Foundation::Rect GetRect() const { return get_as<Windows::Foundation::Rect>(); }
-        void GetUInt8Array(com_array<std::uint8_t>& value) const { get_as(value); }
-        void GetInt16Array(com_array<std::int16_t>& value) const { get_as(value); }
-        void GetUInt16Array(com_array<std::uint16_t>& value) const { get_as(value); }
-        void GetInt32Array(com_array<std::int32_t>& value) const { get_as(value); }
-        void GetUInt32Array(com_array<std::uint32_t>& value) const { get_as(value); }
-        void GetInt64Array(com_array<std::int64_t>& value) const { get_as(value); }
-        void GetUInt64Array(com_array<std::uint64_t>& value) const { get_as(value); }
-        void GetSingleArray(com_array<float>& value) const { get_as(value); }
-        void GetDoubleArray(com_array<double>& value) const { get_as(value); }
-        void GetChar16Array(com_array<char16_t>& value) const { get_as(value); }
-        void GetBooleanArray(com_array<bool>& value) const { get_as(value); }
-        void GetStringArray(com_array<hstring>& value) const { get_as(value); }
-        void GetInspectableArray(com_array<Windows::Foundation::IInspectable>& value) const { get_as(value); }
-        void GetGuidArray(com_array<guid>& value) const { get_as(value); }
-        void GetDateTimeArray(com_array<Windows::Foundation::DateTime>& value) const { get_as(value); }
-        void GetTimeSpanArray(com_array<Windows::Foundation::TimeSpan>& value) const { get_as(value); }
-        void GetPointArray(com_array<Windows::Foundation::Point>& value) const { get_as(value); }
-        void GetSizeArray(com_array<Windows::Foundation::Size>& value) const { get_as(value); }
-        void GetRectArray(com_array<Windows::Foundation::Rect>& value) const { get_as(value); }
+        std::uint8_t GetUInt8() const { return derived()->template get_as<std::uint8_t>(); }
+        std::int16_t GetInt16() const { return derived()->template get_as<std::int16_t>(); }
+        std::uint16_t GetUInt16() const { return derived()->template get_as<std::uint16_t>(); }
+        std::int32_t GetInt32() const { return derived()->template get_as<std::int32_t>(); }
+        std::uint32_t GetUInt32() const { return derived()->template get_as<std::uint32_t>(); }
+        std::int64_t GetInt64() const { return derived()->template get_as<std::int64_t>(); }
+        std::uint64_t GetUInt64() const { return derived()->template get_as<std::uint64_t>(); }
+        float GetSingle() const { return derived()->template get_as<float>(); }
+        double GetDouble() const { return derived()->template get_as<double>(); }
+        char16_t GetChar16() const { return derived()->template get_as<char16_t>(); }
+        bool GetBoolean() const { return derived()->template get_as<bool>(); }
+        hstring GetString() const { return derived()->template get_as<hstring>(); }
+        guid GetGuid() const { return derived()->template get_as<guid>(); }
+        Windows::Foundation::DateTime GetDateTime() const { return derived()->template get_as<Windows::Foundation::DateTime>(); }
+        Windows::Foundation::TimeSpan GetTimeSpan() const { return derived()->template get_as<Windows::Foundation::TimeSpan>(); }
+        Windows::Foundation::Point GetPoint() const { return derived()->template get_as<Windows::Foundation::Point>(); }
+        Windows::Foundation::Size GetSize() const { return derived()->template get_as<Windows::Foundation::Size>(); }
+        Windows::Foundation::Rect GetRect() const { return derived()->template get_as<Windows::Foundation::Rect>(); }
+        void GetUInt8Array(com_array<std::uint8_t>& value) const { derived()->get_as(value); }
+        void GetInt16Array(com_array<std::int16_t>& value) const { derived()->get_as(value); }
+        void GetUInt16Array(com_array<std::uint16_t>& value) const { derived()->get_as(value); }
+        void GetInt32Array(com_array<std::int32_t>& value) const { derived()->get_as(value); }
+        void GetUInt32Array(com_array<std::uint32_t>& value) const { derived()->get_as(value); }
+        void GetInt64Array(com_array<std::int64_t>& value) const { derived()->get_as(value); }
+        void GetUInt64Array(com_array<std::uint64_t>& value) const { derived()->get_as(value); }
+        void GetSingleArray(com_array<float>& value) const { derived()->get_as(value); }
+        void GetDoubleArray(com_array<double>& value) const { derived()->get_as(value); }
+        void GetChar16Array(com_array<char16_t>& value) const { derived()->get_as(value); }
+        void GetBooleanArray(com_array<bool>& value) const { derived()->get_as(value); }
+        void GetStringArray(com_array<hstring>& value) const { derived()->get_as(value); }
+        void GetInspectableArray(com_array<Windows::Foundation::IInspectable>& value) const { derived()->get_as(value); }
+        void GetGuidArray(com_array<guid>& value) const { derived()->get_as(value); }
+        void GetDateTimeArray(com_array<Windows::Foundation::DateTime>& value) const { derived()->get_as(value); }
+        void GetTimeSpanArray(com_array<Windows::Foundation::TimeSpan>& value) const { derived()->get_as(value); }
+        void GetPointArray(com_array<Windows::Foundation::Point>& value) const { derived()->get_as(value); }
+        void GetSizeArray(com_array<Windows::Foundation::Size>& value) const { derived()->get_as(value); }
+        void GetRectArray(com_array<Windows::Foundation::Rect>& value) const { derived()->get_as(value); }
 
     private:
 
-        // For stock scalar T, hand out an IMarshal that marshals by value: build the equivalent
-        // combase PropertyValue on demand and delegate marshaling to it. This is lazy - box_value and
-        // unbox_value never touch combase; the hop only happens if the reference is actually marshaled.
+        Derived const* derived() const noexcept { return static_cast<Derived const*>(this); }
+
         std::int32_t query_interface_tearoff(guid const& id, void** object) const noexcept override
         {
             if constexpr (is_stock_reference_v<T>)
@@ -140,7 +121,7 @@ WINRT_EXPORT namespace winrt::impl
                 {
                     try
                     {
-                        auto marshal = create_property_value().template as<IMarshal>();
+                        auto marshal = derived()->create_property_value().template as<IMarshal>();
                         *object = detach_abi(marshal);
                         return error_ok;
                     }
@@ -151,12 +132,9 @@ WINRT_EXPORT namespace winrt::impl
                     }
                 }
 
-                // reference<T> is immutable, so it is safe to call from any apartment. Advertise
-                // IAgileObject (as combase PropertyValue does) so callers keep the agile fast path;
-                // cross-apartment/process marshaling still routes through the by-value IMarshal above.
                 if (is_guid_of<IAgileObject>(id))
                 {
-                    auto unknown = reinterpret_cast<unknown_abi*>(to_abi<Windows::Foundation::IReference<T>>(this));
+                    auto unknown = reinterpret_cast<unknown_abi*>(to_abi<Interface>(derived()));
                     unknown->AddRef();
                     *object = unknown;
                     return error_ok;
@@ -166,6 +144,23 @@ WINRT_EXPORT namespace winrt::impl
             *object = nullptr;
             return error_no_interface;
         }
+    };
+
+    template <typename T>
+    struct reference : reference_producer<reference<T>, T, Windows::Foundation::IReference<T>, false>
+    {
+        reference(T const& value) : m_value(value)
+        {
+        }
+
+        T Value() const
+        {
+            return m_value;
+        }
+
+    private:
+
+        template <typename, typename, typename, bool> friend struct reference_producer;
 
         Windows::Foundation::IInspectable create_property_value() const
         {
@@ -190,13 +185,6 @@ WINRT_EXPORT namespace winrt::impl
             else { return nullptr; }
         }
 
-        template <typename U>
-        static constexpr bool is_numeric_scalar_v =
-            (std::is_arithmetic_v<U> && !std::is_same_v<U, bool> && !std::is_same_v<U, char16_t>) || std::is_enum_v<U>;
-
-        // Single accessor behind every scalar IPropertyValue getter. An exact type match returns the
-        // stored value and a numeric source converts to any numeric target (matching combase
-        // PropertyValue); anything else throws.
         template <typename To>
         To get_as() const
         {
@@ -214,7 +202,6 @@ WINRT_EXPORT namespace winrt::impl
             }
         }
 
-        // A scalar reference never holds an array, so every array getter throws.
         template <typename To>
         void get_as(com_array<To> const&) const
         {
@@ -224,18 +211,8 @@ WINRT_EXPORT namespace winrt::impl
         T m_value;
     };
 
-    // Marks array element types that combase PropertyValue can carry by value, mirroring
-    // is_stock_reference_v for scalars. box_value(com_array<T>) on one of these produces an in-process
-    // reference_array<T> and still marshals by value across apartments/processes.
     template <typename T>
-    using reference_array_base_t = implements<reference_array<T>,
-        Windows::Foundation::IReferenceArray<T>, Windows::Foundation::IPropertyValue,
-        std::conditional_t<is_stock_reference_v<T>, non_agile, marker>>;
-
-    // In-process IReferenceArray<T> / IPropertyValue, the array counterpart to reference<T>. Boxing an
-    // array copies it in once; the getters hand back fresh copies so the projection's move-out is safe.
-    template <typename T>
-    struct reference_array : reference_array_base_t<T>
+    struct reference_array : reference_producer<reference_array<T>, T, Windows::Foundation::IReferenceArray<T>, true>
     {
         reference_array(array_view<T const> const& value) : m_value(value.begin(), value.end())
         {
@@ -246,89 +223,9 @@ WINRT_EXPORT namespace winrt::impl
             return com_array<T>(m_value.begin(), m_value.end());
         }
 
-        Windows::Foundation::PropertyType Type() const noexcept
-        {
-            return array_property_type<T>();
-        }
-
-        static constexpr bool IsNumericScalar() noexcept
-        {
-            return false;
-        }
-
-        std::uint8_t GetUInt8() const { return get_as<std::uint8_t>(); }
-        std::int16_t GetInt16() const { return get_as<std::int16_t>(); }
-        std::uint16_t GetUInt16() const { return get_as<std::uint16_t>(); }
-        std::int32_t GetInt32() const { return get_as<std::int32_t>(); }
-        std::uint32_t GetUInt32() const { return get_as<std::uint32_t>(); }
-        std::int64_t GetInt64() const { return get_as<std::int64_t>(); }
-        std::uint64_t GetUInt64() const { return get_as<std::uint64_t>(); }
-        float GetSingle() const { return get_as<float>(); }
-        double GetDouble() const { return get_as<double>(); }
-        char16_t GetChar16() const { return get_as<char16_t>(); }
-        bool GetBoolean() const { return get_as<bool>(); }
-        hstring GetString() const { return get_as<hstring>(); }
-        guid GetGuid() const { return get_as<guid>(); }
-        Windows::Foundation::DateTime GetDateTime() const { return get_as<Windows::Foundation::DateTime>(); }
-        Windows::Foundation::TimeSpan GetTimeSpan() const { return get_as<Windows::Foundation::TimeSpan>(); }
-        Windows::Foundation::Point GetPoint() const { return get_as<Windows::Foundation::Point>(); }
-        Windows::Foundation::Size GetSize() const { return get_as<Windows::Foundation::Size>(); }
-        Windows::Foundation::Rect GetRect() const { return get_as<Windows::Foundation::Rect>(); }
-        void GetUInt8Array(com_array<std::uint8_t>& value) const { get_as(value); }
-        void GetInt16Array(com_array<std::int16_t>& value) const { get_as(value); }
-        void GetUInt16Array(com_array<std::uint16_t>& value) const { get_as(value); }
-        void GetInt32Array(com_array<std::int32_t>& value) const { get_as(value); }
-        void GetUInt32Array(com_array<std::uint32_t>& value) const { get_as(value); }
-        void GetInt64Array(com_array<std::int64_t>& value) const { get_as(value); }
-        void GetUInt64Array(com_array<std::uint64_t>& value) const { get_as(value); }
-        void GetSingleArray(com_array<float>& value) const { get_as(value); }
-        void GetDoubleArray(com_array<double>& value) const { get_as(value); }
-        void GetChar16Array(com_array<char16_t>& value) const { get_as(value); }
-        void GetBooleanArray(com_array<bool>& value) const { get_as(value); }
-        void GetStringArray(com_array<hstring>& value) const { get_as(value); }
-        void GetInspectableArray(com_array<Windows::Foundation::IInspectable>& value) const { get_as(value); }
-        void GetGuidArray(com_array<guid>& value) const { get_as(value); }
-        void GetDateTimeArray(com_array<Windows::Foundation::DateTime>& value) const { get_as(value); }
-        void GetTimeSpanArray(com_array<Windows::Foundation::TimeSpan>& value) const { get_as(value); }
-        void GetPointArray(com_array<Windows::Foundation::Point>& value) const { get_as(value); }
-        void GetSizeArray(com_array<Windows::Foundation::Size>& value) const { get_as(value); }
-        void GetRectArray(com_array<Windows::Foundation::Rect>& value) const { get_as(value); }
-
     private:
 
-        // For stock element arrays, hand out an IMarshal that marshals by value via combase's array
-        // PropertyValue - the same lazy hop reference<T> uses, so box_value/unbox_value stay local.
-        std::int32_t query_interface_tearoff(guid const& id, void** object) const noexcept override
-        {
-            if constexpr (is_stock_reference_v<T>)
-            {
-                if (is_guid_of<IMarshal>(id))
-                {
-                    try
-                    {
-                        auto marshal = create_property_value().template as<IMarshal>();
-                        *object = detach_abi(marshal);
-                        return error_ok;
-                    }
-                    catch (...)
-                    {
-                        *object = nullptr;
-                        return to_hresult();
-                    }
-                }
-
-                if (is_guid_of<IAgileObject>(id))
-                {
-                    auto unknown = reinterpret_cast<unknown_abi*>(to_abi<Windows::Foundation::IReferenceArray<T>>(this));
-                    unknown->AddRef();
-                    *object = unknown;
-                    return error_ok;
-                }
-            }
-
-            *object = nullptr;
-            return error_no_interface;
-        }
+        template <typename, typename, typename, bool> friend struct reference_producer;
 
         Windows::Foundation::IInspectable create_property_value() const
         {
@@ -353,15 +250,12 @@ WINRT_EXPORT namespace winrt::impl
             else { return nullptr; }
         }
 
-        // An array reference holds no scalar, so every scalar getter throws.
         template <typename To>
         To get_as() const
         {
             throw hresult_not_implemented();
         }
 
-        // The matching array getter hands back a fresh copy of the stored array; any other element
-        // type throws.
         template <typename To>
         void get_as(com_array<To>& value) const
         {
@@ -490,11 +384,6 @@ WINRT_EXPORT namespace winrt::impl
         using itf = Windows::Foundation::IReferenceArray<bool>;
     };
 
-    // These array element types stay on combase PropertyValue. hstring, DateTime, and TimeSpan project
-    // to a type whose layout differs from its ABI (a handle, or a chrono type over the raw int64), and
-    // the generic IReferenceArray<T> producer marshals the element bit-for-bit, so a local producer
-    // can't round-trip them. IInspectable, Size, and Rect are outside the stock set (mirroring the
-    // scalar reference<T> path). box_value/unbox_value of every other array element type is fully local.
     template <>
     struct reference_traits<com_array<hstring>>
     {

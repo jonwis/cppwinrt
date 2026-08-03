@@ -13,7 +13,7 @@ Don't build C++/WinRT yourself - just download the latest version here: https://
 
 ## Working on the compiler
 
-If you really want to build it yourself, the simplest way to do so is to run the `build_test_all.cmd` script in the root directory. It takes optional positional arguments: `build_test_all.cmd [platform] [configuration] [version] [clean] [compiler]`, e.g. `build_test_all.cmd x64 Debug 999.999.999.999 "" clang`. The `compiler` argument defaults to `msvc`; pass `clang` (or `clang-cl`) to build the compiler and test projects with the clang-cl toolset, matching the clang-cl leg of CI. Developers needing to work on the C++/WinRT compiler itself should go through the following steps to arrive at an efficient inner loop:
+If you really want to build it yourself, the simplest way to do so is to run the `build_test_all.cmd` script in the root directory. Developers needing to work on the C++/WinRT compiler itself should go through the following steps to arrive at an efficient inner loop:
 
 * Open a dev command prompt pointing at the root of the repo.
 * Open the `cppwinrt.sln` solution.

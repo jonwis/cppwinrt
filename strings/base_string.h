@@ -483,8 +483,6 @@ WINRT_EXPORT namespace winrt
 
 WINRT_EXPORT namespace winrt::impl
 {
-    // The fast-pass header for each distinct literal, materialized once as a compile-time
-    // constant so `_hs` is a constant expression rather than per-call work.
     template <hstring_literal_storage Literal>
     inline constexpr hstring_header hstring_literal_header
     {
